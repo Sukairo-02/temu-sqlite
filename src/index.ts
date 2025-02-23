@@ -30,9 +30,9 @@ type InferSchema<TSchema extends Schema> = Simplify<
 	}
 >;
 
-type NullAsOptional<TData extends Record<string, any>> =
+type NullAsUndefined<TData extends Record<string, any>> =
 	& {
-		[K in keyof TData as null extends TData[K] ? K : never]?: TData[K];
+		[K in keyof TData as null extends TData[K] ? K : never]: TData[K] | undefined;
 	}
 	& {
 		[K in keyof TData as null extends TData[K] ? never : K]: TData[K];
@@ -139,10 +139,24 @@ function replaceValue(arr: Array<any>, target: any, update: any) {
 	return arr;
 }
 
+export type InferInsert<TShape extends Record<string, any>> = Simplify<
+	Omit<
+		NullAsUndefined<
+			{
+				[
+					K in keyof TShape as K extends keyof Common
+						? (null extends Common[K] ? null extends TShape[K] ? never : K : K) : K
+				]: TShape[K];
+			}
+		>,
+		'entityType'
+	>
+>;
+
 type InsertFn<
 	TInput extends Record<string, any>,
 > = (
-	input: Simplify<Omit<TInput, 'entityType'>>,
+	input: InferInsert<TInput>,
 ) => {
 	status: 'OK' | 'CONFLICT';
 	data: TInput extends [Record<string, any>, Record<string, any>, ...Record<string, any>[]] ? TInput[] : TInput;
@@ -158,9 +172,12 @@ const generateInsert: (config: Config, store: CollectionStore, type: string) => 
 	store,
 	type,
 ) => {
+	const nulls = Object.fromEntries(Object.keys(config).map((e) => [e, null]));
+
 	return (input) => {
 		const filteredElement = Object.fromEntries(Object.entries(input).filter(([_, value]) => value !== undefined));
 		const mapped = {
+			...nulls,
 			...filteredElement,
 			entityType: type,
 		};
