@@ -15,9 +15,10 @@ type Simplify<T> =
 
 type Assume<T, U> = T extends U ? T : U;
 
-type ExtendedType = `${DataType}${'' | '?'}`;
+type ExtendedType = `${DataType}${'' | '?'}` | [(string | null), ...(string | null)[]];
 
-type InferField<T extends ExtendedType> = T extends `${infer Type extends DataType}?` ? TypeMap[Type] | null
+type InferField<T extends ExtendedType> = T extends any[] ? T[number]
+	: T extends `${infer Type extends DataType}?` ? TypeMap[Type] | null
 	: TypeMap[Assume<T, DataType>];
 
 type Definition = Record<string, Schema>;
