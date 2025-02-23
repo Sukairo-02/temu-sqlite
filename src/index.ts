@@ -15,7 +15,7 @@ type Simplify<T> =
 
 type Assume<T, U> = T extends U ? T : U;
 
-type ExtendedType = `${DataType}${'' | '?'}` | [(string | null), ...(string | null)[]];
+type ExtendedType = `${DataType}${'' | '?'}` | [(string | null), ...(string | null)[]] | 'required';
 
 type InferField<T extends ExtendedType> = T extends any[] ? T[number]
 	: T extends `${infer Type extends DataType}?` ? TypeMap[Type] | null
@@ -25,7 +25,8 @@ type Definition = Record<string, Schema>;
 
 type InferSchema<TSchema extends Schema> = Simplify<
 	{
-		[K in keyof TSchema]: InferField<Assume<TSchema[K], ExtendedType>>;
+		[K in keyof TSchema]: K extends keyof Common ? Exclude<Common[K], null>
+			: InferField<Assume<TSchema[K], ExtendedType>>;
 	}
 >;
 
@@ -40,7 +41,10 @@ type NullAsOptional<TData extends Record<string, any>> =
 type Schema =
 	& Record<string, ExtendedType>
 	& {
-		[K in keyof Common]?: never;
+		[K in keyof Common as null extends Common[K] ? K : never]?: 'required';
+	}
+	& {
+		[K in keyof Common as null extends Common[K] ? never : K]?: never;
 	}
 	& {
 		entityType?: never;
@@ -62,7 +66,7 @@ type InferEntities<
 	TDefinition extends Definition,
 > = {
 	[K in keyof TDefinition]: Simplify<
-		InferSchema<TDefinition[K]> & Common & {
+		InferSchema<TDefinition[K]> & Omit<Common, keyof TDefinition[K]> & {
 			entityType: K;
 		}
 	>;
@@ -453,13 +457,29 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 		const configs = Object.fromEntries(entries.map(([type, def]) => {
 			if (type === 'entities' || type === '_') throw new Error(`Illegal entity type name: "${type}"`);
 
-			Object.keys(def).forEach((fieldName) => {
-				if (fieldName in commonConfig) throw new Error(`Used forbidden key "${fieldName}" in entity "${type}"`);
+			Object.entries(def).forEach(([fieldName, fieldValue]) => {
+				if (fieldValue === 'required') {
+					if (!(fieldName in commonConfig)) {
+						throw new Error(
+							`Type value "required" is only applicable to common keys [ ${
+								Object.keys(commonConfig).map((e) => `"${e}"`).join(', ')
+							} ], used on: "${fieldName}"`,
+						);
+					}
+
+					def[fieldName] = (commonConfig[fieldName].endsWith('?')
+						? commonConfig[fieldName].slice(0, commonConfig[fieldName].length - 1)
+						: commonConfig[fieldName]) as Exclude<ExtendedType, 'required'>;
+				} else {
+					if (fieldName in commonConfig) {
+						throw new Error(`Used forbidden key "${fieldName}" in entity "${type}"`);
+					}
+				}
 			});
 
 			return [type, {
-				...def,
 				...commonConfig,
+				...def,
 			}];
 		}));
 
