@@ -109,6 +109,23 @@ function filterCollection(collection: Record<string, any>[], filter: Filter) {
 	return collection.filter((e) => matchesFilters(e, filter));
 }
 
+type CommonEntity = Common & {
+	entityType: string;
+};
+
+function getCompositeKey(
+	row: CommonEntity,
+): string {
+	return `${row.schema ?? ''}:${row.table ?? ''}:${row.name}:${row.entityType}`;
+}
+
+function findCompositeKey(dataSource: (CommonEntity)[], target: CommonEntity) {
+	const targetKey = getCompositeKey(target);
+	const match = dataSource.find((e) => getCompositeKey(e) === targetKey);
+
+	return match;
+}
+
 function replaceValue(arr: Array<any>, target: any, update: any) {
 	for (var i = 0; i < arr.length; i++) {
 		if (arr[i] === target) {
@@ -118,9 +135,14 @@ function replaceValue(arr: Array<any>, target: any, update: any) {
 	return arr;
 }
 
-type InsertFn<TInput extends Record<string, any>> = (
-	...input: Simplify<Omit<NullAsOptional<TInput>, 'entityType'>>[]
-) => TInput;
+type InsertFn<
+	TInput extends Record<string, any>,
+> = (
+	input: Simplify<Omit<NullAsOptional<TInput>, 'entityType'>>,
+) => {
+	status: 'OK' | 'CONFLICT';
+	data: TInput extends [Record<string, any>, Record<string, any>, ...Record<string, any>[]] ? TInput[] : TInput;
+};
 type ListFn<TInput extends Record<string, any>> = (where?: Filter<TInput>) => TInput[];
 type UpdateFn<TInput extends Record<string, any>> = (
 	config: { value: Simplify<UpdateOperators<Omit<TInput, 'entityType'>>>; filter?: Filter<TInput> },
@@ -134,16 +156,22 @@ const generateInsert: (config: Config, store: CollectionStore, type: string) => 
 ) => {
 	const nulls = Object.fromEntries(Object.keys(config).map((e) => [e, null]));
 
-	return (...input) => {
-		store.collection.push(
-			...(input.map((e: Record<string, any>) => {
-				e.entityType = type;
-				const filteredElement = Object.fromEntries(Object.entries(e).filter(([_, value]) => value !== undefined));
-				return { ...nulls, ...filteredElement };
-			})),
-		);
+	return (input) => {
+		const filteredElement = Object.fromEntries(Object.entries(input).filter(([_, value]) => value !== undefined));
+		const mapped = {
+			...nulls,
+			...filteredElement,
+			entityType: type,
+		};
 
-		return input;
+		const conflict = findCompositeKey(store.collection as CommonEntity[], mapped as CommonEntity);
+		if (conflict) {
+			return { status: 'CONFLICT', data: conflict };
+		}
+
+		store.collection.push(mapped);
+
+		return { status: 'OK', data: mapped };
 	};
 };
 
@@ -307,14 +335,6 @@ type CollectionRow = Record<string, any> & Common & {
 	entityType: string;
 	key: string;
 };
-
-function getCompositeKey(
-	row: Common & {
-		entityType: string;
-	},
-): string {
-	return `${row.schema ?? ''}:${row.table ?? ''}:${row.name}:${row.entityType}`;
-}
 
 const ignoreChanges: Record<keyof Common | 'entityType', true> = {
 	entityType: true,

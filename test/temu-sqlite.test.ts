@@ -29,6 +29,8 @@ test('Insert & list entity', () => {
 			alias: 'first',
 			schema: 'public',
 		},
+	);
+	db.entityTwo.insert(
 		{
 			name: 'n2',
 			array: ['four', 'five', 'six'],
@@ -134,7 +136,8 @@ test('Insert & list multiple entities', () => {
 	db.entityOne.insert({
 		name: 'e1',
 		type: 'varchar',
-	}, {
+	});
+	db.entityOne.insert({
 		name: 'e2',
 		type: 'text',
 	});
@@ -147,6 +150,8 @@ test('Insert & list multiple entities', () => {
 			alias: 'first',
 			schema: 'public',
 		},
+	);
+	db.entityTwo.insert(
 		{
 			name: 'n2',
 			array: ['four', 'five', 'six'],
@@ -237,7 +242,8 @@ test('Insert & list filtered multiple entities', () => {
 	db.entityOne.insert({
 		name: 'e1',
 		type: 'varchar',
-	}, {
+	});
+	db.entityOne.insert({
 		name: 'e2',
 		type: 'text',
 		schema: 'public',
@@ -251,6 +257,8 @@ test('Insert & list filtered multiple entities', () => {
 			alias: 'first',
 			schema: 'public',
 		},
+	);
+	db.entityTwo.insert(
 		{
 			name: 'n2',
 			array: ['four', 'five', 'six', 'TARGET'],
@@ -259,6 +267,8 @@ test('Insert & list filtered multiple entities', () => {
 			schema: 'public',
 			table: 'private',
 		},
+	);
+	db.entityTwo.insert(
 		{
 			name: 'n3',
 			array: ['seven', 'eight', 'nine'],
@@ -354,7 +364,8 @@ test('diff: update', () => {
 		type: 'serial',
 		pk: true,
 		table: 'user',
-	}, {
+	});
+	original.column.insert({
 		name: 'name',
 		type: 'varchar',
 		pk: false,
@@ -366,7 +377,8 @@ test('diff: update', () => {
 		type: 'serial',
 		pk: true,
 		table: 'user',
-	}, {
+	});
+	changed.column.insert({
 		name: 'name',
 		type: 'text',
 		pk: false,
@@ -413,7 +425,8 @@ test('diff: insert', () => {
 		type: 'serial',
 		pk: true,
 		table: 'user',
-	}, {
+	});
+	changed.column.insert({
 		name: 'name',
 		type: 'varchar',
 		pk: false,
@@ -452,7 +465,8 @@ test('diff: delete', () => {
 		type: 'serial',
 		pk: true,
 		table: 'user',
-	}, {
+	});
+	original.column.insert({
 		name: 'name',
 		type: 'varchar',
 		pk: false,
