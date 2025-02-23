@@ -145,7 +145,8 @@ export type InferInsert<TShape extends Record<string, any>> = Simplify<
 			{
 				[
 					K in keyof TShape as K extends keyof Common
-						? (null extends Common[K] ? null extends TShape[K] ? never : K : K) : K
+						? (null extends Common[K] ? null extends TShape[K] ? never : K : K)
+						: K
 				]: TShape[K];
 			}
 		>,
@@ -295,7 +296,7 @@ type Config = Record<string, string>;
 type DbConfig<TDefinition extends Definition> = {
 	/** Type-level fields only, do not attempt to access at runtime */
 	types: InferEntities<TDefinition>;
-	rawDefinition: TDefinition;
+	definition: TDefinition;
 	entities: {
 		[K in keyof TDefinition]: Config;
 	};
