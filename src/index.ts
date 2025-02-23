@@ -323,7 +323,7 @@ export type DiffInsert<
 	& {
 		type: 'insert';
 		entityType: TType;
-		row: Omit<TShape, keyof CommonEntity>;
+		row: Simplify<Omit<TShape, keyof CommonEntity>>;
 	}
 	& {
 		[
@@ -344,7 +344,7 @@ export type DiffDelete<
 	& {
 		type: 'delete';
 		entityType: TType;
-		row: Omit<TShape, keyof CommonEntity>;
+		row: Simplify<Omit<TShape, keyof CommonEntity>>;
 	}
 	& {
 		[
@@ -364,7 +364,7 @@ export type DiffUpdate<
 > = Simplify<{
 	type: 'update';
 	entityType: TType;
-	changes:
+	changes: Simplify<
 		& {
 			[K in Exclude<keyof TShape, keyof CommonEntity>]?: {
 				from: TShape[K];
@@ -373,7 +373,8 @@ export type DiffUpdate<
 		}
 		& {
 			[K in keyof Common as K extends keyof TShape ? null extends TShape[K] ? never : K : K]: Common[K];
-		};
+		}
+	>;
 }>;
 
 export type DiffStatement<
