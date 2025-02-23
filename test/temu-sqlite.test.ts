@@ -28,6 +28,8 @@ test('Insert & list entity', () => {
 			counter: 1,
 			alias: 'first',
 			schema: 'public',
+			table: null,
+			verified: null,
 		},
 	);
 	db.entityTwo.insert(
@@ -38,6 +40,7 @@ test('Insert & list entity', () => {
 			alias: 'second',
 			schema: 'public',
 			table: 'private',
+			verified: null,
 		},
 	);
 
@@ -136,10 +139,16 @@ test('Insert & list multiple entities', () => {
 	db.entityOne.insert({
 		name: 'e1',
 		type: 'varchar',
+		email: null,
+		schema: null,
+		table: null,
 	});
 	db.entityOne.insert({
 		name: 'e2',
 		type: 'text',
+		email: null,
+		schema: null,
+		table: null,
 	});
 
 	db.entityTwo.insert(
@@ -149,6 +158,8 @@ test('Insert & list multiple entities', () => {
 			counter: 1,
 			alias: 'first',
 			schema: 'public',
+			table: null,
+			verified: null,
 		},
 	);
 	db.entityTwo.insert(
@@ -159,6 +170,7 @@ test('Insert & list multiple entities', () => {
 			alias: 'second',
 			schema: 'public',
 			table: 'private',
+			verified: null,
 		},
 	);
 
@@ -242,11 +254,16 @@ test('Insert & list filtered multiple entities', () => {
 	db.entityOne.insert({
 		name: 'e1',
 		type: 'varchar',
+		schema: null,
+		email: null,
+		table: null,
 	});
 	db.entityOne.insert({
 		name: 'e2',
 		type: 'text',
 		schema: 'public',
+		email: null,
+		table: null,
 	});
 
 	db.entityTwo.insert(
@@ -256,6 +273,8 @@ test('Insert & list filtered multiple entities', () => {
 			counter: 1,
 			alias: 'first',
 			schema: 'public',
+			verified: null,
+			table: null,
 		},
 	);
 	db.entityTwo.insert(
@@ -266,6 +285,7 @@ test('Insert & list filtered multiple entities', () => {
 			alias: 'second',
 			schema: 'public',
 			table: 'private',
+			verified: null,
 		},
 	);
 	db.entityTwo.insert(
@@ -275,6 +295,8 @@ test('Insert & list filtered multiple entities', () => {
 			counter: 3,
 			alias: 'second',
 			table: 'private',
+			schema: null,
+			verified: null,
 		},
 	);
 
@@ -364,12 +386,14 @@ test('diff: update', () => {
 		type: 'serial',
 		pk: true,
 		table: 'user',
+		schema: null,
 	});
 	original.column.insert({
 		name: 'name',
 		type: 'varchar',
 		pk: false,
 		table: 'user',
+		schema: null,
 	});
 
 	changed.column.insert({
@@ -377,12 +401,14 @@ test('diff: update', () => {
 		type: 'serial',
 		pk: true,
 		table: 'user',
+		schema: null,
 	});
 	changed.column.insert({
 		name: 'name',
 		type: 'text',
 		pk: false,
 		table: 'user',
+		schema: null,
 	});
 
 	const res = diff(original, changed, 'column');
@@ -418,6 +444,7 @@ test('diff: insert', () => {
 		type: 'serial',
 		pk: true,
 		table: 'user',
+		schema: null,
 	});
 
 	changed.column.insert({
@@ -425,12 +452,14 @@ test('diff: insert', () => {
 		type: 'serial',
 		pk: true,
 		table: 'user',
+		schema: null,
 	});
 	changed.column.insert({
 		name: 'name',
 		type: 'varchar',
 		pk: false,
 		table: 'user',
+		schema: null,
 	});
 
 	const res = diff(original, changed, 'column');
@@ -465,12 +494,14 @@ test('diff: delete', () => {
 		type: 'serial',
 		pk: true,
 		table: 'user',
+		schema: null,
 	});
 	original.column.insert({
 		name: 'name',
 		type: 'varchar',
 		pk: false,
 		table: 'user',
+		schema: null,
 	});
 
 	changed.column.insert({
@@ -478,6 +509,7 @@ test('diff: delete', () => {
 		type: 'serial',
 		pk: true,
 		table: 'user',
+		schema: null,
 	});
 	const res = diff(original, changed, 'column');
 

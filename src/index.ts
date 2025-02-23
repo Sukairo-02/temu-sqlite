@@ -138,7 +138,7 @@ function replaceValue(arr: Array<any>, target: any, update: any) {
 type InsertFn<
 	TInput extends Record<string, any>,
 > = (
-	input: Simplify<Omit<NullAsOptional<TInput>, 'entityType'>>,
+	input: Simplify<Omit<TInput, 'entityType'>>,
 ) => {
 	status: 'OK' | 'CONFLICT';
 	data: TInput extends [Record<string, any>, Record<string, any>, ...Record<string, any>[]] ? TInput[] : TInput;
@@ -154,12 +154,9 @@ const generateInsert: (config: Config, store: CollectionStore, type: string) => 
 	store,
 	type,
 ) => {
-	const nulls = Object.fromEntries(Object.keys(config).map((e) => [e, null]));
-
 	return (input) => {
 		const filteredElement = Object.fromEntries(Object.entries(input).filter(([_, value]) => value !== undefined));
 		const mapped = {
-			...nulls,
 			...filteredElement,
 			entityType: type,
 		};
