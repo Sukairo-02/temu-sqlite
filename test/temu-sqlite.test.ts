@@ -411,7 +411,7 @@ test('diff: update', () => {
 		schema: null,
 	});
 
-	const res = diff(original, changed, 'column');
+	const res = diff(original, changed, 'column', true);
 
 	expect(res).toStrictEqual([{
 		type: 'update',
@@ -467,13 +467,15 @@ test('diff: insert', () => {
 	expect(res).toStrictEqual([{
 		type: 'insert',
 		entityType: 'column',
+		name: 'name',
+		schema: null,
+		table: 'user',
 		row: {
 			entityType: 'column',
 			name: 'name',
 			type: 'varchar',
 			pk: false,
 			table: 'user',
-			schema: null,
 		},
 	}]);
 });
@@ -483,6 +485,7 @@ test('diff: delete', () => {
 		column: {
 			type: 'string',
 			pk: 'boolean?',
+			table: 'required',
 		},
 	} as const;
 
@@ -494,14 +497,12 @@ test('diff: delete', () => {
 		type: 'serial',
 		pk: true,
 		table: 'user',
-		schema: null,
 	});
 	original.column.insert({
 		name: 'name',
 		type: 'varchar',
 		pk: false,
 		table: 'user',
-		schema: null,
 	});
 
 	changed.column.insert({
@@ -509,7 +510,6 @@ test('diff: delete', () => {
 		type: 'serial',
 		pk: true,
 		table: 'user',
-		schema: null,
 	});
 	const res = diff(original, changed, 'column');
 
@@ -522,7 +522,6 @@ test('diff: delete', () => {
 			type: 'varchar',
 			pk: false,
 			table: 'user',
-			schema: null,
 		},
 	}]);
 });

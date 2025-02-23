@@ -311,44 +311,78 @@ type AnyDbConfig = {
 
 type ValueOf<T> = T[keyof T];
 
-export type DiffInsert<TShape extends Record<string, any> = Record<string, any>, TType extends string = string> = {
-	type: 'insert';
-	entityType: TType;
-	row: TShape;
-};
+export type DiffInsert<
+	TSchema extends Definition = {},
+	TType extends string = string,
+	TShape extends Record<string, any> = Simplify<
+		InferSchema<TSchema[TType]> & Omit<Common, keyof TSchema[TType]> & {
+			entityType: TType;
+		}
+	>,
+> = Simplify<
+	& {
+		type: 'insert';
+		entityType: TType;
+		row: Omit<TShape, keyof CommonEntity>;
+	}
+	& {
+		[
+			K in keyof Common as K extends keyof TShape ? null extends TShape[K] ? never : K : K
+		]: Common[K];
+	}
+>;
 
-export type DiffDelete<TShape extends Record<string, any> = Record<string, any>, TType extends string = string> = {
-	type: 'delete';
-	entityType: TType;
-	row: TShape;
-};
+export type DiffDelete<
+	TSchema extends Definition = {},
+	TType extends string = string,
+	TShape extends Record<string, any> = Simplify<
+		InferSchema<TSchema[TType]> & Omit<Common, keyof TSchema[TType]> & {
+			entityType: TType;
+		}
+	>,
+> = Simplify<
+	& {
+		type: 'delete';
+		entityType: TType;
+		row: Omit<TShape, keyof CommonEntity>;
+	}
+	& {
+		[
+			K in keyof Common as K extends keyof TShape ? null extends TShape[K] ? never : K : K
+		]: Common[K];
+	}
+>;
 
-export type DiffUpdate<TShape extends Record<string, any> = Record<string, any>, TType extends string = string> = {
+export type DiffUpdate<
+	TSchema extends Definition = {},
+	TType extends string = string,
+	TShape extends Record<string, any> = Simplify<
+		InferSchema<TSchema[TType]> & Omit<Common, keyof TSchema[TType]> & {
+			entityType: TType;
+		}
+	>,
+> = Simplify<{
 	type: 'update';
 	entityType: TType;
-	schema: string | null;
-	table: string | null;
-	name: string;
-	changes: {
-		[K in Exclude<keyof TShape, keyof Common | 'entityType'>]?: {
-			from: TShape[K];
-			to: TShape[K];
+	changes:
+		& {
+			[K in Exclude<keyof TShape, keyof CommonEntity>]?: {
+				from: TShape[K];
+				to: TShape[K];
+			};
+		}
+		& {
+			[K in keyof Common as K extends keyof TShape ? null extends TShape[K] ? never : K : K]: Common[K];
 		};
-	};
-};
+}>;
 
 export type DiffStatement<
 	TSchema extends Definition,
 	TType extends keyof TSchema,
-	TShape extends Record<string, any> = Simplify<
-		InferSchema<TSchema[TType]> & Common & {
-			entityType: TType;
-		}
-	>,
 > =
-	| DiffInsert<TShape, Assume<TType, string>>
-	| DiffDelete<TShape, Assume<TType, string>>
-	| DiffUpdate<TShape, Assume<TType, string>>;
+	| DiffInsert<TSchema, Assume<TType, string>>
+	| DiffDelete<TSchema, Assume<TType, string>>
+	| DiffUpdate<TSchema, Assume<TType, string>>;
 
 type CollectionRow = Record<string, any> & Common & {
 	entityType: string;
@@ -370,11 +404,17 @@ function isEqual(a: any, b: any): boolean {
 	return a === b;
 }
 
+function sanitizeRow(row: Record<string, any>) {
+	return Object.fromEntries(
+		Object.entries(row).filter(([k, v]) => !ignoreChanges[k as keyof typeof ignoreChanges]),
+	);
+}
+
 export function diff<TDefinition extends Definition, TCollection extends keyof TDefinition>(
 	dbOld: SimpleDb<TDefinition>,
 	dbNew: SimpleDb<TDefinition>,
 	collection: TCollection,
-	ignoreUpdates = false,
+	ignoreUpdates = true,
 ): Simplify<DiffStatement<TDefinition, TCollection>>[] {
 	const leftEntities = dbOld.entities.list({
 		// @ts-ignore
@@ -405,7 +445,11 @@ export function diff<TDefinition extends Definition, TCollection extends keyof T
 			deleted.push({
 				type: 'delete',
 				entityType: oldRow.entityType,
-				row: oldRow,
+				name: oldRow.name,
+				// @ts-ignore
+				schema: oldRow.schema,
+				table: oldRow.table,
+				row: sanitizeRow(oldRow),
 			});
 		} else if (!ignoreUpdates) {
 			const changes: Record<string, any> = {};
@@ -424,10 +468,11 @@ export function diff<TDefinition extends Definition, TCollection extends keyof T
 				changed.push({
 					type: 'update',
 					entityType: newRow.entityType,
+					// @ts-ignore
 					name: newRow.name,
 					schema: newRow.schema,
 					table: newRow.table,
-					changes,
+					changes: changes as (typeof changed)[number]['changes'],
 				});
 			}
 		}
@@ -439,11 +484,15 @@ export function diff<TDefinition extends Definition, TCollection extends keyof T
 		inserted.push({
 			type: 'insert',
 			entityType: newRow.entityType as string,
-			row: newRow,
+			name: newRow.name,
+			// @ts-ignore
+			schema: newRow.schema,
+			table: newRow.table,
+			row: sanitizeRow(newRow),
 		});
 	}
 
-	return [...inserted, ...deleted, ...changed] as DiffStatement<TDefinition, TCollection>[];
+	return [...inserted, ...deleted, ...changed] as any as DiffStatement<TDefinition, TCollection>[];
 }
 
 class SimpleDb<TDefinition extends Definition = Record<string, any>> {
@@ -474,8 +523,11 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 		const entries = Object.entries(definition);
 		const configs = Object.fromEntries(entries.map(([type, def]) => {
 			if (type === 'entities' || type === '_') throw new Error(`Illegal entity type name: "${type}"`);
+			const cloneDef: Record<string, any> = {};
 
 			Object.entries(def).forEach(([fieldName, fieldValue]) => {
+				cloneDef[fieldName] = fieldValue;
+
 				if (fieldValue === 'required') {
 					if (!(fieldName in commonConfig)) {
 						throw new Error(
@@ -485,7 +537,7 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 						);
 					}
 
-					def[fieldName] = (commonConfig[fieldName].endsWith('?')
+					cloneDef[fieldName] = (commonConfig[fieldName].endsWith('?')
 						? commonConfig[fieldName].slice(0, commonConfig[fieldName].length - 1)
 						: commonConfig[fieldName]) as Exclude<ExtendedType, 'required'>;
 				} else {
@@ -497,7 +549,7 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 
 			return [type, {
 				...commonConfig,
-				...def,
+				...cloneDef,
 			}];
 		}));
 
