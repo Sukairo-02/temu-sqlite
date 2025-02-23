@@ -1,6 +1,6 @@
 import { beforeEach } from 'vitest';
 import { expect, expectTypeOf, test } from 'vitest';
-import { create } from '../src';
+import { create, diff } from '../src';
 
 const db = create({
 	entityOne: {
@@ -335,5 +335,148 @@ test('Insert & list filtered multiple entities', () => {
 		schema: 'public',
 		table: 'private',
 		verified: null,
+	}]);
+});
+
+test('diff: update', () => {
+	const cfg = {
+		column: {
+			type: 'string',
+			pk: 'boolean?',
+		},
+	} as const;
+
+	const original = create(cfg);
+	const changed = create(cfg);
+
+	original.column.insert({
+		name: 'id',
+		type: 'serial',
+		pk: true,
+		table: 'user',
+	}, {
+		name: 'name',
+		type: 'varchar',
+		pk: false,
+		table: 'user',
+	});
+
+	changed.column.insert({
+		name: 'id',
+		type: 'serial',
+		pk: true,
+		table: 'user',
+	}, {
+		name: 'name',
+		type: 'text',
+		pk: false,
+		table: 'user',
+	});
+
+	const res = diff(original, changed, 'column');
+
+	expect(res).toStrictEqual([{
+		type: 'update',
+		entityType: 'column',
+		schema: null,
+		table: 'user',
+		name: 'name',
+		changes: {
+			type: {
+				from: 'varchar',
+				to: 'text',
+			},
+		},
+	}]);
+});
+
+test('diff: insert', () => {
+	const cfg = {
+		column: {
+			type: 'string',
+			pk: 'boolean?',
+		},
+	} as const;
+
+	const original = create(cfg);
+	const changed = create(cfg);
+
+	original.column.insert({
+		name: 'id',
+		type: 'serial',
+		pk: true,
+		table: 'user',
+	});
+
+	changed.column.insert({
+		name: 'id',
+		type: 'serial',
+		pk: true,
+		table: 'user',
+	}, {
+		name: 'name',
+		type: 'varchar',
+		pk: false,
+		table: 'user',
+	});
+
+	const res = diff(original, changed, 'column');
+
+	expect(res).toStrictEqual([{
+		type: 'insert',
+		entityType: 'column',
+		row: {
+			entityType: 'column',
+			name: 'name',
+			type: 'varchar',
+			pk: false,
+			table: 'user',
+			schema: null,
+		},
+	}]);
+});
+
+test('diff: delete', () => {
+	const cfg = {
+		column: {
+			type: 'string',
+			pk: 'boolean?',
+		},
+	} as const;
+
+	const original = create(cfg);
+	const changed = create(cfg);
+
+	original.column.insert({
+		name: 'id',
+		type: 'serial',
+		pk: true,
+		table: 'user',
+	}, {
+		name: 'name',
+		type: 'varchar',
+		pk: false,
+		table: 'user',
+	});
+
+	changed.column.insert({
+		name: 'id',
+		type: 'serial',
+		pk: true,
+		table: 'user',
+	});
+	const res = diff(original, changed, 'column');
+
+	expect(res).toStrictEqual([{
+		type: 'delete',
+		entityType: 'column',
+		row: {
+			entityType: 'column',
+			name: 'name',
+			type: 'varchar',
+			pk: false,
+			table: 'user',
+			schema: null,
+		},
 	}]);
 });

@@ -36,7 +36,14 @@ type NullAsOptional<TData extends Record<string, any>> =
 		[K in keyof TData as null extends TData[K] ? never : K]: TData[K];
 	};
 
-type Schema = Record<string, ExtendedType>;
+type Schema =
+	& Record<string, ExtendedType>
+	& {
+		[K in keyof Common]?: never;
+	}
+	& {
+		entityType?: never;
+	};
 
 type Common = {
 	schema: string | null;
@@ -241,6 +248,7 @@ type Config = Record<string, string>;
 type DbConfig<TDefinition extends Definition> = {
 	/** Type-level fields only, do not attempt to access at runtime */
 	types: InferEntities<TDefinition>;
+	rawDefinition: TDefinition;
 	entities: {
 		[K in keyof TDefinition]: Config;
 	};
@@ -254,6 +262,148 @@ type AnyDbConfig = {
 };
 
 type ValueOf<T> = T[keyof T];
+
+export type DiffInsert<TShape extends Record<string, any> = Record<string, any>, TType extends string = string> = {
+	type: 'insert';
+	entityType: TType;
+	row: TShape;
+};
+
+export type DiffDelete<TShape extends Record<string, any> = Record<string, any>, TType extends string = string> = {
+	type: 'delete';
+	entityType: TType;
+	row: TShape;
+};
+
+export type DiffUpdate<TShape extends Record<string, any> = Record<string, any>, TType extends string = string> = {
+	type: 'update';
+	entityType: TType;
+	schema: string | null;
+	table: string | null;
+	name: string;
+	changes: {
+		[K in Exclude<keyof TShape, keyof Common | 'entityType'>]?: {
+			from: TShape[K];
+			to: TShape[K];
+		};
+	};
+};
+
+export type DiffStatement<
+	TSchema extends Definition,
+	TType extends keyof TSchema,
+	TShape extends Record<string, any> = Simplify<
+		InferSchema<TSchema[TType]> & Common & {
+			entityType: TType;
+		}
+	>,
+> =
+	| DiffInsert<TShape, Assume<TType, string>>
+	| DiffDelete<TShape, Assume<TType, string>>
+	| DiffUpdate<TShape, Assume<TType, string>>;
+
+type CollectionRow = Record<string, any> & Common & {
+	entityType: string;
+	key: string;
+};
+
+function getCompositeKey(
+	row: Common & {
+		entityType: string;
+	},
+): string {
+	return `${row.schema ?? ''}:${row.table ?? ''}:${row.name}:${row.entityType}`;
+}
+
+const ignoreChanges: Record<keyof Common | 'entityType', true> = {
+	entityType: true,
+	name: true,
+	schema: true,
+	table: true,
+};
+
+function isEqual(a: any, b: any): boolean {
+	if (Array.isArray(a) && Array.isArray(b)) {
+		if (a.length !== b.length) return false;
+		return a.every((v, i) => v === b[i]);
+	}
+	return a === b;
+}
+
+export function diff<TDefinition extends Definition, TCollection extends keyof TDefinition>(
+	dbOld: SimpleDb<TDefinition>,
+	dbNew: SimpleDb<TDefinition>,
+	collection: TCollection,
+): Simplify<DiffStatement<TDefinition, TCollection>>[] {
+	const leftEntities = dbOld.entities.list({
+		// @ts-ignore
+		entityType: collection,
+	}) as CollectionRow[];
+	const rightEntities = dbNew.entities.list({
+		// @ts-ignore
+		entityType: collection,
+	}) as CollectionRow[];
+
+	const left: Record<string, CollectionRow> = {};
+	const right: Record<string, CollectionRow> = {};
+
+	for (const row of leftEntities) {
+		left[getCompositeKey(row)] = row;
+	}
+	for (const row of rightEntities) {
+		right[getCompositeKey(row)] = row;
+	}
+
+	const inserted: DiffInsert[] = [];
+	const deleted: DiffDelete[] = [];
+	const changed: DiffUpdate[] = [];
+
+	for (const [key, oldRow] of Object.entries(left)) {
+		const newRow = right[key];
+		if (!newRow) {
+			deleted.push({
+				type: 'delete',
+				entityType: oldRow.entityType,
+				row: oldRow,
+			});
+		} else {
+			const changes: Record<string, any> = {};
+			let isChanged = false;
+
+			for (const [k, v] of Object.entries(oldRow)) {
+				if (ignoreChanges[k as keyof typeof ignoreChanges]) continue;
+
+				if (!isEqual(oldRow[k], newRow[k])) {
+					isChanged = true;
+					changes[k] = { from: oldRow[k], to: newRow[k] };
+				}
+			}
+
+			if (isChanged) {
+				changed.push({
+					type: 'update',
+					entityType: newRow.entityType,
+					name: newRow.name,
+					schema: newRow.schema,
+					table: newRow.table,
+					changes,
+				});
+			}
+		}
+
+		delete right[key];
+	}
+
+	for (const newRow of Object.values(right)) {
+		inserted.push({
+			type: 'insert',
+			entityType: newRow.entityType as string,
+			row: newRow,
+		});
+	}
+
+	return [...inserted, ...deleted, ...changed] as DiffStatement<TDefinition, TCollection>[];
+}
 
 class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 	public readonly _: DbConfig<TDefinition> = {
