@@ -355,6 +355,7 @@ export function diff<TDefinition extends Definition, TCollection extends keyof T
 	dbOld: SimpleDb<TDefinition>,
 	dbNew: SimpleDb<TDefinition>,
 	collection: TCollection,
+	ignoreUpdates = false,
 ): Simplify<DiffStatement<TDefinition, TCollection>>[] {
 	const leftEntities = dbOld.entities.list({
 		// @ts-ignore
@@ -387,7 +388,7 @@ export function diff<TDefinition extends Definition, TCollection extends keyof T
 				entityType: oldRow.entityType,
 				row: oldRow,
 			});
-		} else {
+		} else if (!ignoreUpdates) {
 			const changes: Record<string, any> = {};
 			let isChanged = false;
 
