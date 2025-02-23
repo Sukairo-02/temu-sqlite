@@ -125,7 +125,7 @@ const generateInsert: (config: Config, store: CollectionStore, type: string) => 
 ) => {
 	const nulls = Object.fromEntries(Object.keys(config).map((e) => [e, null]));
 
-	return (input) => {
+	return (...input) => {
 		collection.push(
 			...(input.map((e: Record<string, any>) => {
 				e.entityType = type;
@@ -138,7 +138,7 @@ const generateInsert: (config: Config, store: CollectionStore, type: string) => 
 	};
 };
 
-const generateList: (config: Config, store: CollectionStore, type: string) => ListFn<any> = (
+const generateList: (config: Config, store: CollectionStore, type?: string) => ListFn<any> = (
 	config,
 	{ collection },
 	type,
@@ -218,7 +218,7 @@ function initSchemaProcessors<T extends DbConfig<any>>(
 	return Object.fromEntries(entries.map(([k, v]) => {
 		return [k, {
 			insert: generateInsert(v, store, k),
-			list: generateList(v, store, k),
+			list: generateList(v, store, common ? undefined : k),
 			update: generateUpdate(v, store),
 			delete: generateDelete(v, store),
 		}];
@@ -273,8 +273,12 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 		}));
 
 		this._.entities = configs as any;
+		
+		const entConfig = {...this._, entities: {
+			entities: commonConfig 
+		}}
 
-		this.entities = initSchemaProcessors(this._, this._.store, true).entities;
+		this.entities = initSchemaProcessors(entConfig, this._.store, true).entities;
 	}
 }
 
@@ -294,17 +298,3 @@ export function create<
 
 	return db as any;
 }
-
-const db = create({
-	tables: {
-		name: 'string',
-	},
-	columns: {
-		name: 'string',
-		unique: 'boolean',
-	},
-	schemae: {
-		name: 'string',
-		count: 'number',
-	},
-});
