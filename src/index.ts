@@ -86,7 +86,8 @@ function matchesFilters(item: Record<string, any>, filter: Filter): boolean {
 		if (v === undefined) continue;
 		const target = item[k];
 
-		if (Array.isArray(target) && 'CONTAINS' in v) {
+		if (Array.isArray(target) || (typeof v === 'object' && v.CONTAINS !== undefined)) {
+			if (v.CONTAINS === undefined || target === undefined) continue;
 			if (!target.find(v.CONTAINS)) return false;
 		} else {
 			if (target !== v) return false;
@@ -120,13 +121,13 @@ type DeleteFn<TInput extends Record<string, any>> = (where?: Filter<TInput>) => 
 
 const generateInsert: (config: Config, store: CollectionStore, type: string) => InsertFn<any> = (
 	config,
-	{ collection },
+	store,
 	type,
 ) => {
 	const nulls = Object.fromEntries(Object.keys(config).map((e) => [e, null]));
 
 	return (...input) => {
-		collection.push(
+		store.collection.push(
 			...(input.map((e: Record<string, any>) => {
 				e.entityType = type;
 				const filteredElement = Object.fromEntries(Object.entries(e).filter(([_, value]) => value !== undefined));
@@ -140,15 +141,15 @@ const generateInsert: (config: Config, store: CollectionStore, type: string) => 
 
 const generateList: (config: Config, store: CollectionStore, type?: string) => ListFn<any> = (
 	config,
-	{ collection },
+	store,
 	type,
 ) => {
 	return (where) => {
 		const from = type
-			? filterCollection(collection, {
+			? filterCollection(store.collection, {
 				entityType: type,
 			})
-			: collection;
+			: store.collection;
 
 		if (!where) return from;
 
@@ -156,9 +157,9 @@ const generateList: (config: Config, store: CollectionStore, type?: string) => L
 	};
 };
 
-const generateUpdate: (config: Config, store: CollectionStore) => UpdateFn<any> = (config, { collection }) => {
+const generateUpdate: (config: Config, store: CollectionStore) => UpdateFn<any> = (config, store) => {
 	return ({ value, filter }) => {
-		const targets = filter ? filterCollection(collection, filter) : collection;
+		const targets = filter ? filterCollection(store.collection, filter) : store.collection;
 		const entries = Object.entries(value);
 
 		for (const item of targets) {
@@ -179,19 +180,29 @@ const generateUpdate: (config: Config, store: CollectionStore) => UpdateFn<any> 
 	};
 };
 
-const generateDelete: (config: Config, store: CollectionStore) => DeleteFn<any> = (config, store) => {
+const generateDelete: (config: Config, store: CollectionStore, type?: string) => DeleteFn<any> = (
+	config,
+	store,
+	type,
+) => {
 	return (where) => {
 		const updatedCollection = [] as Record<string, any>[];
 		const deleted = [] as Record<string, any>[];
 
-		if (!where) {
+		const filter = where && type ? { ...where, entityType: type } : type
+			? {
+				entityType: type,
+			}
+			: undefined;
+
+		if (!filter) {
 			store.collection = updatedCollection;
 
 			return deleted;
 		}
 
 		store.collection.forEach((e) => {
-			if (matchesFilters(e, where)) deleted.push(e);
+			if (matchesFilters(e, filter)) deleted.push(e);
 			else updatedCollection.push(e);
 		});
 
@@ -220,7 +231,7 @@ function initSchemaProcessors<T extends DbConfig<any>>(
 			insert: generateInsert(v, store, k),
 			list: generateList(v, store, common ? undefined : k),
 			update: generateUpdate(v, store),
-			delete: generateDelete(v, store),
+			delete: generateDelete(v, store, common ? undefined : k),
 		}];
 	})) as any;
 }
@@ -242,6 +253,8 @@ type AnyDbConfig = {
 	entities: Record<string, Config>;
 };
 
+type ValueOf<T> = T[keyof T];
+
 class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 	public readonly _: DbConfig<TDefinition> = {
 		store: {
@@ -251,7 +264,16 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 
 	public entities: Omit<
 		GenerateProcessors<{
-			types: { entities: Common & { entityType: keyof TDefinition } };
+			types: {
+				entities: InferEntities<TDefinition> extends infer TInferred ? Simplify<
+						ValueOf<
+							{
+								[K in keyof TInferred]: TInferred[K];
+							}
+						>
+					>
+					: never;
+			};
 			entities: any;
 		}>['entities'],
 		'insert'
@@ -273,12 +295,15 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 		}));
 
 		this._.entities = configs as any;
-		
-		const entConfig = {...this._, entities: {
-			entities: commonConfig 
-		}}
 
-		this.entities = initSchemaProcessors(entConfig, this._.store, true).entities;
+		const entConfig = {
+			...this._,
+			entities: {
+				entities: commonConfig,
+			},
+		};
+
+		this.entities = initSchemaProcessors(entConfig, this._.store, true).entities as any;
 	}
 }
 
