@@ -86,9 +86,9 @@ function matchesFilters(item: Record<string, any>, filter: Filter): boolean {
 		if (v === undefined) continue;
 		const target = item[k];
 
-		if (Array.isArray(target) || (typeof v === 'object' && v.CONTAINS !== undefined)) {
-			if (v.CONTAINS === undefined || target === undefined) continue;
-			if (!target.find(v.CONTAINS)) return false;
+		if ((typeof v === 'object' && v.CONTAINS !== undefined)) {
+			if (!Array.isArray(target)) return false;
+			if (!target.find((e) => e === v.CONTAINS)) return false;
 		} else {
 			if (target !== v) return false;
 		}
