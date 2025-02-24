@@ -30,13 +30,11 @@ type RemoveQuestionMark<T extends string> = T extends `${infer R}?` ? R : T;
 
 type InferField<T extends ExtendedType> = T extends string[] ? T[number]
 	: T extends [Record<string, ExtendedType>] ? {
-			[K in keyof T[0] & string as RemoveQuestionMark<K>]:
-				| InferField<T[0][K]>
-				| (K extends `${string}?` ? null : never);
+			[K in keyof T[0] & string]: InferField<T[0][K]>;
 		}[]
 	: T extends Record<string, ExtendedType> ?
 			| {
-				[K in keyof T & string as RemoveQuestionMark<K>]: InferField<T[K]> | (K extends `${string}?` ? null : never);
+				[K in keyof T & string]: InferField<T[K]>;
 			}
 			| null
 	: T extends `${infer Type extends DataType}?` ? TypeMap[Type] | null
@@ -47,8 +45,8 @@ type Definition = Record<string, Schema>;
 
 type InferSchema<TSchema extends Schema> = Simplify<
 	{
-		[K in keyof TSchema & string as RemoveQuestionMark<K>]: K extends keyof Common ? Exclude<Common[K], null>
-			: InferField<Assume<TSchema[K], ExtendedType>> | (K extends `${string}?` ? null : never);
+		[K in keyof TSchema & string]: K extends keyof Common ? Exclude<Common[K], null>
+			: InferField<Assume<TSchema[K], ExtendedType>>;
 	}
 >;
 
