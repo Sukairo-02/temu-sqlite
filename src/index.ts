@@ -15,9 +15,24 @@ type Simplify<T> =
 
 type Assume<T, U> = T extends U ? T : U;
 
-type ExtendedType = `${DataType}${'' | '?'}` | [(string | null), ...(string | null)[]] | 'required';
+type ExtendedType =
+	| `${DataType}${'' | '?'}`
+	| [(string | null), ...(string | null)[]]
+	| 'required'
+	| {
+		[K: string]: Exclude<ExtendedType, 'required'>;
+	}
+	| ([{
+		[K: string]: Exclude<ExtendedType, 'required'>;
+	}]);
 
-type InferField<T extends ExtendedType> = T extends any[] ? T[number]
+type InferField<T extends ExtendedType> = T extends (string | null)[] ? T[number]
+	: T extends [Record<string, ExtendedType>] ? {
+			[K in keyof T[0]]: InferField<T[0][K]>;
+		}[]
+	: T extends Record<string, ExtendedType> ? {
+			[K in keyof T]: InferField<T[K]>;
+		}
 	: T extends `${infer Type extends DataType}?` ? TypeMap[Type] | null
 	: TypeMap[Assume<T, DataType>];
 
@@ -83,8 +98,14 @@ type UpdateOperators<TInput extends Record<string, any>> = {
 	[K in keyof TInput]?:
 		| TInput[K]
 		| (TInput[K] extends any[] ? {
-				REPLACE: TInput[K][number];
-				WITH: TInput[K][number];
+				REPLACE: (
+					item: TInput[K][number],
+				) =>
+					| TInput[K][number]
+					| (TInput[K][number] extends (object | object[]) ? never : {
+						value: TInput[K][number];
+						with: TInput[K][number];
+					});
 			}
 			: never);
 };
@@ -233,7 +254,9 @@ const generateUpdate: (config: Config, store: CollectionStore, type?: string) =>
 				const target = item[k];
 
 				if (Array.isArray(target) && v.REPLACE) {
-					item[k] = replaceValue(target, v.REPLACE, v.WITH);
+					item[k] = typeof v.REPLACE === 'function'
+						? item[k].map(v.REPLACE)
+						: replaceValue(item[k], v.REPLACE.value, v.REPLACE.with);
 
 					continue;
 				}
@@ -409,6 +432,9 @@ const ignoreChanges: Record<keyof Common | 'entityType', true> = {
 };
 
 function isEqual(a: any, b: any): boolean {
+	// Temporary skip object comparison
+	if ((typeof a === 'object' && a !== null) || (typeof b === 'object' && b !== null)) return true;
+
 	if (Array.isArray(a) && Array.isArray(b)) {
 		if (a.length !== b.length) return false;
 		return a.every((v, i) => v === b[i]);

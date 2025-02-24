@@ -3,16 +3,53 @@ import { expect, expectTypeOf, test } from 'vitest';
 import { create, diff } from '../src';
 
 const db = create({
-	entityOne: {
+	tables: {},
+	columns: {
+		table: 'required',
 		type: 'string',
-		email: 'string?',
+		primaryKey: 'boolean',
+		notNull: 'boolean',
+		autoincrement: 'boolean?',
+		default: 'string?',
+		generatedType: 'string?',
+		generatedAs: 'string?',
 	},
-	entityTwo: {
-		alias: 'string',
-		counter: 'number',
-		array: 'string[]',
-		verified: 'boolean?',
+	indexes: {
+		table: 'required',
+		columns: 'string[]',
+		isUnique: 'boolean',
+		where: 'string?',
 	},
+	fks: {
+		table: 'required',
+		tableFrom: 'string',
+		columnsFrom: 'string[]',
+		tableTo: 'string',
+		columnsTo: 'string[]',
+		onUpdate: 'string?',
+		onDelete: 'string?',
+	},
+	pks: {
+		table: 'required',
+		columns: 'string[]',
+	},
+	uniques: {
+		table: 'required',
+		columns: 'string[]',
+	},
+	checks: {
+		table: 'required',
+		value: 'string',
+	},
+	views: {
+		definition: 'string?',
+		isExisting: 'boolean',
+		obj: [{
+			objF1: 'string',
+			objF2: 'boolean?',
+		}],
+	},
+	viewColumns: {},
 });
 
 beforeEach(() => {
