@@ -26,15 +26,17 @@ type ExtendedType =
 		[K: string]: Exclude<ExtendedType, 'required'>;
 	}]);
 
-type RemoveQuestionMark<T extends string> = T extends `${infer R}?` ? R : T;
+type RemoveQuestionMark<T extends any> = T extends string ? T extends `${infer R}?` ? R : T : T;
 
 type InferField<T extends ExtendedType> = T extends string[] ? T[number]
 	: T extends [Record<string, ExtendedType>] ? {
-			[K in keyof T[0] & string]: InferField<T[0][K]>;
+			[K in keyof T[0] as RemoveQuestionMark<K>]:
+				| InferField<T[0][K]>
+				| (K extends `${string}?` ? null : never);
 		}[]
 	: T extends Record<string, ExtendedType> ?
 			| {
-				[K in keyof T & string]: InferField<T[K]>;
+				[K in keyof T as RemoveQuestionMark<K>]: InferField<T[K]> | (K extends `${string}?` ? null : never);
 			}
 			| null
 	: T extends `${infer Type extends DataType}?` ? TypeMap[Type] | null
@@ -45,8 +47,8 @@ type Definition = Record<string, Schema>;
 
 type InferSchema<TSchema extends Schema> = Simplify<
 	{
-		[K in keyof TSchema & string]: K extends keyof Common ? Exclude<Common[K], null>
-			: InferField<Assume<TSchema[K], ExtendedType>>;
+		[K in keyof TSchema as RemoveQuestionMark<K>]: K extends keyof Common ? Exclude<Common[K], null>
+			: InferField<Assume<TSchema[K], ExtendedType>> | (K extends `${string}?` ? null : never);
 	}
 >;
 
@@ -575,7 +577,7 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 			const cloneDef: Record<string, any> = {};
 
 			Object.entries(def).forEach(([fieldName, fieldValue]) => {
-				const newName = fieldName; // removeQuestionMark(fieldName);
+				const newName = removeQuestionMark(fieldName);
 				cloneDef[newName] = fieldValue;
 
 				if (fieldValue === 'required') {
@@ -588,11 +590,10 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 					}
 
 					cloneDef[newName] =
-						(typeof commonConfig[newName] === 'string'
-							&& commonConfig[newName]) /*removeQuestionMark(commonConfig[newName]))*/ as Exclude<
-								ExtendedType,
-								'required'
-							>;
+						(typeof commonConfig[newName] === 'string' && removeQuestionMark(commonConfig[newName])) as Exclude<
+							ExtendedType,
+							'required'
+						>;
 				} else {
 					if (newName in commonConfig || fieldName in commonConfig) {
 						throw new Error(`Used forbidden key "${fieldName}" in entity "${type}"`);

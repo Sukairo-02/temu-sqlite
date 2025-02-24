@@ -10,9 +10,9 @@ const db = create({
 		primaryKey: 'boolean',
 		notNull: 'boolean',
 		'autoincrement?': 'boolean',
-		'default?': 'string',
-		'generatedType?': 'string',
-		'generatedAs?': 'string',
+		default: 'string',
+		generatedType: 'string',
+		generatedAs: 'string',
 	},
 	indexes: {
 		table: 'required',
