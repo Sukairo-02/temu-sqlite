@@ -26,17 +26,13 @@ type ExtendedType =
 		[K: string]: Exclude<ExtendedType, 'required'>;
 	}]);
 
-type RemoveQuestionMark<T extends any> = T extends string ? T extends `${infer R}?` ? R : T : T;
-
 type InferField<T extends ExtendedType> = T extends string[] ? T[number]
 	: T extends [Record<string, ExtendedType>] ? {
-			[K in keyof T[0] as RemoveQuestionMark<K>]:
-				| InferField<T[0][K]>
-				| (K extends `${string}?` ? null : never);
+			[K in keyof T[0]]: InferField<T[0][K]>;
 		}[]
 	: T extends Record<string, ExtendedType> ?
 			| {
-				[K in keyof T as RemoveQuestionMark<K>]: InferField<T[K]> | (K extends `${string}?` ? null : never);
+				[K in keyof T]: InferField<T[K]>;
 			}
 			| null
 	: T extends `${infer Type extends DataType}?` ? TypeMap[Type] | null
@@ -47,8 +43,8 @@ type Definition = Record<string, Schema>;
 
 type InferSchema<TSchema extends Schema> = Simplify<
 	{
-		[K in keyof TSchema as RemoveQuestionMark<K>]: K extends keyof Common ? Exclude<Common[K], null>
-			: InferField<Assume<TSchema[K], ExtendedType>> | (K extends `${string}?` ? null : never);
+		[K in keyof TSchema]: K extends keyof Common ? Exclude<Common[K], null>
+			: InferField<Assume<TSchema[K], ExtendedType>>;
 	}
 >;
 
@@ -83,8 +79,8 @@ type Common = {
 };
 
 const commonConfig: Config = {
-	schema: 'string',
-	table: 'string',
+	schema: 'string?',
+	table: 'string?',
 	name: 'string',
 };
 
@@ -540,12 +536,6 @@ export function diff<TDefinition extends Definition, TCollection extends keyof T
 	return [...inserted, ...deleted, ...changed] as any as DiffStatement<TDefinition, TCollection>[];
 }
 
-function removeQuestionMark<T extends string>(str: T): RemoveQuestionMark<T> {
-	return (str.endsWith('?')
-		? str.slice(0, str.length - 1)
-		: str) as RemoveQuestionMark<T>;
-}
-
 class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 	public readonly _: DbConfig<TDefinition> = {
 		store: {
@@ -577,8 +567,7 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 			const cloneDef: Record<string, any> = {};
 
 			Object.entries(def).forEach(([fieldName, fieldValue]) => {
-				const newName = removeQuestionMark(fieldName);
-				cloneDef[newName] = fieldValue;
+				cloneDef[fieldName] = fieldValue;
 
 				if (fieldValue === 'required') {
 					if (!(fieldName in commonConfig)) {
@@ -589,13 +578,12 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 						);
 					}
 
-					cloneDef[newName] =
-						(typeof commonConfig[newName] === 'string' && removeQuestionMark(commonConfig[newName])) as Exclude<
-							ExtendedType,
-							'required'
-						>;
+					cloneDef[fieldName] = (commonConfig[fieldName]) as Exclude<
+						ExtendedType,
+						'required'
+					>;
 				} else {
-					if (newName in commonConfig || fieldName in commonConfig) {
+					if (fieldName in commonConfig || fieldName in commonConfig) {
 						throw new Error(`Used forbidden key "${fieldName}" in entity "${type}"`);
 					}
 				}

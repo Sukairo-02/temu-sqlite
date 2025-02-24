@@ -420,7 +420,7 @@ test('diff: update', () => {
 	const cfg = {
 		column: {
 			type: 'string',
-			'pk?': 'boolean',
+			pk: 'boolean?',
 			table: 'required',
 		},
 	} as const;
@@ -475,7 +475,7 @@ test('diff: insert', () => {
 	const cfg = {
 		column: {
 			type: 'string',
-			'pk?': 'boolean',
+			pk: 'boolean?',
 			table: 'required',
 		},
 	} as const;
@@ -522,7 +522,7 @@ test('diff: delete', () => {
 	const cfg = {
 		column: {
 			type: 'string',
-			'pk?': 'boolean',
+			pk: 'boolean?',
 			table: 'required',
 		},
 	} as const;
