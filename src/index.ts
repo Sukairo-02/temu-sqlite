@@ -212,8 +212,19 @@ const generateList: (config: Config, store: CollectionStore, type?: string) => L
 	};
 };
 
-const generateUpdate: (config: Config, store: CollectionStore) => UpdateFn<any> = (config, store) => {
-	return ({ value, filter }) => {
+const generateUpdate: (config: Config, store: CollectionStore, type?: string) => UpdateFn<any> = (
+	config,
+	store,
+	type,
+) => {
+	return ({ value, filter: where }) => {
+		const filter = type
+			? {
+				...(where ?? {}),
+				entityType: type,
+			}
+			: where;
+
 		const targets = filter ? filterCollection(store.collection, filter) : store.collection;
 		const entries = Object.entries(value);
 
@@ -285,7 +296,7 @@ function initSchemaProcessors<T extends DbConfig<any>>(
 		return [k, {
 			insert: generateInsert(v, store, k),
 			list: generateList(v, store, common ? undefined : k),
-			update: generateUpdate(v, store),
+			update: generateUpdate(v, store, common ? undefined : k),
 			delete: generateDelete(v, store, common ? undefined : k),
 		}];
 	})) as any;
