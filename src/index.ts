@@ -34,9 +34,11 @@ type InferField<T extends ExtendedType> = T extends string[] ? T[number]
 				| InferField<T[0][K]>
 				| (K extends `${string}?` ? null : never);
 		}[]
-	: T extends Record<string, ExtendedType> ? {
-			[K in keyof T & string as RemoveQuestionMark<K>]: InferField<T[K]> | (K extends `${string}?` ? null : never);
-		}
+	: T extends Record<string, ExtendedType> ?
+			| {
+				[K in keyof T & string as RemoveQuestionMark<K>]: InferField<T[K]> | (K extends `${string}?` ? null : never);
+			}
+			| null
 	: T extends `${infer Type extends DataType}?` ? TypeMap[Type] | null
 	: T extends DataType ? TypeMap[T]
 	: never;
