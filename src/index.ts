@@ -107,8 +107,8 @@ type UpdateOperators<TInput extends Record<string, any>> = {
 	[K in keyof TInput]?:
 		| TInput[K]
 		| (TInput[K] extends (any[] | Record<string, any> | null) ? ((
-				item: TInput extends string[] | null ? Exclude<TInput[K][number], null> : TInput[K],
-			) => TInput extends any[] | null ? Exclude<TInput[K][number], null> : TInput[K])
+				item: TInput[K] extends any[] | null ? Exclude<TInput[K], null>[number] : TInput[K],
+			) => TInput[K] extends any[] | null ? Exclude<TInput[K], null>[number] : TInput[K])
 			: never);
 };
 
