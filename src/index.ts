@@ -575,7 +575,7 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 			const cloneDef: Record<string, any> = {};
 
 			Object.entries(def).forEach(([fieldName, fieldValue]) => {
-				const newName = removeQuestionMark(fieldName);
+				const newName = fieldName; // removeQuestionMark(fieldName);
 				cloneDef[newName] = fieldValue;
 
 				if (fieldValue === 'required') {
@@ -588,10 +588,11 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 					}
 
 					cloneDef[newName] =
-						(typeof commonConfig[newName] === 'string' && removeQuestionMark(commonConfig[newName])) as Exclude<
-							ExtendedType,
-							'required'
-						>;
+						(typeof commonConfig[newName] === 'string'
+							&& commonConfig[newName]) /*removeQuestionMark(commonConfig[newName]))*/ as Exclude<
+								ExtendedType,
+								'required'
+							>;
 				} else {
 					if (newName in commonConfig || fieldName in commonConfig) {
 						throw new Error(`Used forbidden key "${fieldName}" in entity "${type}"`);
