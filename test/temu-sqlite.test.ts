@@ -52,15 +52,6 @@ const db = create({
 	viewColumns: {},
 });
 
-db.views.update({
-	value: {
-		obj: ({
-			REPLACE(item) {
-			},
-		}),
-	},
-});
-
 beforeEach(() => {
 	db.entities.delete();
 	console.log(db.entities.list());

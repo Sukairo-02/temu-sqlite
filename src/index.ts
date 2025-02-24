@@ -88,10 +88,11 @@ type InferEntities<
 };
 
 type Filter<TInput extends Record<string, any> = Record<string, any>> = {
-	[K in keyof TInput]?: (TInput[K] extends any[] ? {
-			CONTAINS: TInput[K][number];
-		}
-		: TInput[K]);
+	[K in keyof TInput as TInput[K] extends (Record<string, any> | Record<string, any>)[] ? never : K]?:
+		(TInput[K] extends any[] ? {
+				CONTAINS: TInput[K][number];
+			}
+			: TInput[K]);
 };
 
 type UpdateOperators<TInput extends Record<string, any>> = {
