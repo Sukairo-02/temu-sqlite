@@ -16,9 +16,9 @@ type Simplify<T> =
 type Assume<T, U> = T extends U ? T : U;
 
 type ExtendedType =
-	| `${DataType}${'' | '?'}`
-	| [(string | null), ...(string | null)[]]
+	| DataType
 	| 'required'
+	| [string, ...string[]]
 	| {
 		[K: string]: Exclude<ExtendedType, 'required'>;
 	}
@@ -26,22 +26,26 @@ type ExtendedType =
 		[K: string]: Exclude<ExtendedType, 'required'>;
 	}]);
 
-type InferField<T extends ExtendedType> = T extends (string | null)[] ? T[number]
+type RemoveQuestionMark<T extends string> = T extends `${infer R}?` ? R : T;
+
+type InferField<T extends ExtendedType> = T extends string[] ? T[number]
 	: T extends [Record<string, ExtendedType>] ? {
-			[K in keyof T[0]]: InferField<T[0][K]>;
+			[K in keyof T[0] & string as RemoveQuestionMark<K>]:
+				| InferField<T[0][K]>
+				| (K extends `${string}?` ? null : never);
 		}[]
 	: T extends Record<string, ExtendedType> ? {
-			[K in keyof T]: InferField<T[K]>;
+			[K in keyof T & string as RemoveQuestionMark<K>]: InferField<T[K]> | (K extends `${string}?` ? null : never);
 		}
-	: T extends `${infer Type extends DataType}?` ? TypeMap[Type] | null
-	: TypeMap[Assume<T, DataType>];
+	: T extends DataType ? TypeMap[T]
+	: never;
 
 type Definition = Record<string, Schema>;
 
 type InferSchema<TSchema extends Schema> = Simplify<
 	{
-		[K in keyof TSchema]: K extends keyof Common ? Exclude<Common[K], null>
-			: InferField<Assume<TSchema[K], ExtendedType>>;
+		[K in keyof TSchema & string as RemoveQuestionMark<K>]: K extends keyof Common ? Exclude<Common[K], null>
+			: InferField<Assume<TSchema[K], ExtendedType>> | (K extends `${string}?` ? null : never);
 	}
 >;
 
@@ -62,7 +66,11 @@ type Schema =
 		[K in keyof Common as null extends Common[K] ? never : K]?: never;
 	}
 	& {
+		[K in `${keyof Common}?`]?: never;
+	}
+	& {
 		entityType?: never;
+		CONTAINS?: never;
 	};
 
 type Common = {
@@ -72,8 +80,8 @@ type Common = {
 };
 
 const commonConfig: Config = {
-	schema: 'string?',
-	table: 'string?',
+	schema: 'string',
+	table: 'string',
 	name: 'string',
 };
 
@@ -88,26 +96,18 @@ type InferEntities<
 };
 
 type Filter<TInput extends Record<string, any> = Record<string, any>> = {
-	[K in keyof TInput as TInput[K] extends (Record<string, any> | Record<string, any>)[] ? never : K]?:
-		(TInput[K] extends any[] ? {
-				CONTAINS: TInput[K][number];
-			}
-			: TInput[K]);
+	[K in keyof TInput]?: (TInput[K] extends (any[] | null) ? {
+			CONTAINS: TInput[K][number];
+		}
+		: TInput[K]);
 };
 
 type UpdateOperators<TInput extends Record<string, any>> = {
 	[K in keyof TInput]?:
-		| (TInput[K] extends (Record<string, any> | Record<string, any>[]) ? never : TInput[K])
-		| (TInput[K] extends (any[] | Record<string, any>) ? {
-				REPLACE:
-					| ((
-						item: TInput[K][number],
-					) => TInput[K][number])
-					| (TInput[K] extends (Record<string, any> | Record<string, any>[]) ? never : {
-						value: TInput[K][number];
-						with: TInput[K][number];
-					});
-			}
+		| TInput[K]
+		| (TInput[K] extends (any[] | Record<string, any> | null) ? ((
+				item: TInput extends string[] | null ? Exclude<TInput[K][number], null> : TInput[K],
+			) => TInput extends any[] | null ? Exclude<TInput[K][number], null> : TInput[K])
 			: never);
 };
 
@@ -122,9 +122,9 @@ function matchesFilters(item: Record<string, any>, filter: Filter): boolean {
 
 		if ((typeof v === 'object' && v.CONTAINS !== undefined)) {
 			if (!Array.isArray(target)) return false;
-			if (!target.find((e) => e === v.CONTAINS)) return false;
+			if (!target.find((e) => isEqual(e, v.CONTAINS))) return false;
 		} else {
-			if (target !== v) return false;
+			return isEqual(target, v);
 		}
 	}
 
@@ -254,15 +254,9 @@ const generateUpdate: (config: Config, store: CollectionStore, type?: string) =>
 			for (const [k, v] of entries) {
 				const target = item[k];
 
-				if (v.REPLACE) {
-					item[k] = typeof v.REPLACE === 'function'
-						? Array.isArray(target) ? target.map(v.REPLACE) : v.REPLACE(target)
-						: replaceValue(target, v.REPLACE.value, v.REPLACE.with);
-
-					continue;
-				}
-
-				item[k] = v;
+				item[k] = typeof v === 'function'
+					? Array.isArray(target) ? target.map(v) : v(target)
+					: v;
 			}
 		}
 
@@ -433,13 +427,22 @@ const ignoreChanges: Record<keyof Common | 'entityType', true> = {
 };
 
 function isEqual(a: any, b: any): boolean {
-	// Temporary skip object comparison
-	if ((typeof a === 'object' && a !== null) || (typeof b === 'object' && b !== null)) return true;
+	if (typeof a !== typeof b) return false;
 
 	if (Array.isArray(a) && Array.isArray(b)) {
 		if (a.length !== b.length) return false;
-		return a.every((v, i) => v === b[i]);
+		return a.every((v, i) => isEqual(v, b[i]));
 	}
+
+	if (typeof a === 'object') {
+		if (a === b) return true;
+		if ((a === null || b === null) && a !== b) return false;
+
+		const keys = Array.from(new Set([...Object.keys(a), ...Object.keys(b)]));
+
+		return keys.every((k) => isEqual(a[k], b[k]));
+	}
+
 	return a === b;
 }
 
@@ -534,6 +537,12 @@ export function diff<TDefinition extends Definition, TCollection extends keyof T
 	return [...inserted, ...deleted, ...changed] as any as DiffStatement<TDefinition, TCollection>[];
 }
 
+function removeQuestionMark<T extends string>(str: T): RemoveQuestionMark<T> {
+	return (str.endsWith('?')
+		? str.slice(0, str.length - 1)
+		: str) as RemoveQuestionMark<T>;
+}
+
 class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 	public readonly _: DbConfig<TDefinition> = {
 		store: {
@@ -565,7 +574,8 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 			const cloneDef: Record<string, any> = {};
 
 			Object.entries(def).forEach(([fieldName, fieldValue]) => {
-				cloneDef[fieldName] = fieldValue;
+				const newName = removeQuestionMark(fieldName);
+				cloneDef[newName] = fieldValue;
 
 				if (fieldValue === 'required') {
 					if (!(fieldName in commonConfig)) {
@@ -576,11 +586,13 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 						);
 					}
 
-					cloneDef[fieldName] = (typeof commonConfig[fieldName] === 'string' && commonConfig[fieldName].endsWith('?')
-						? commonConfig[fieldName].slice(0, commonConfig[fieldName].length - 1)
-						: commonConfig[fieldName]) as Exclude<ExtendedType, 'required'>;
+					cloneDef[newName] =
+						(typeof commonConfig[newName] === 'string' && removeQuestionMark(commonConfig[newName])) as Exclude<
+							ExtendedType,
+							'required'
+						>;
 				} else {
-					if (fieldName in commonConfig) {
+					if (newName in commonConfig || fieldName in commonConfig) {
 						throw new Error(`Used forbidden key "${fieldName}" in entity "${type}"`);
 					}
 				}
