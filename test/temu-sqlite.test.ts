@@ -44,10 +44,12 @@ const db = create({
 	views: {
 		definition: 'string?',
 		isExisting: 'boolean',
-		obj: [{
+		en: ['2', '3'],
+		arr: 'string[]',
+		obj: {
 			objF1: 'string',
 			objF2: 'boolean?',
-		}],
+		},
 	},
 	viewColumns: {},
 });

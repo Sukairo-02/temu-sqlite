@@ -97,13 +97,13 @@ type Filter<TInput extends Record<string, any> = Record<string, any>> = {
 
 type UpdateOperators<TInput extends Record<string, any>> = {
 	[K in keyof TInput]?:
-		| TInput[K]
-		| (TInput[K] extends any[] ? {
-				REPLACE: (
-					item: TInput[K][number],
-				) =>
-					| TInput[K][number]
-					| (TInput[K][number] extends (object | object[]) ? never : {
+		| (TInput[K] extends (Record<string, any> | Record<string, any>[]) ? never : TInput[K])
+		| (TInput[K] extends (any[] | Record<string, any>) ? {
+				REPLACE:
+					| ((
+						item: TInput[K][number],
+					) => TInput[K][number])
+					| (TInput[K] extends (Record<string, any> | Record<string, any>[]) ? never : {
 						value: TInput[K][number];
 						with: TInput[K][number];
 					});
