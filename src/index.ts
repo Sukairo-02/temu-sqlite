@@ -16,7 +16,7 @@ type Simplify<T> =
 type Assume<T, U> = T extends U ? T : U;
 
 type ExtendedType =
-	| DataType
+	| `${DataType}${'' | '?'}`
 	| 'required'
 	| [string, ...string[]]
 	| {
@@ -37,6 +37,7 @@ type InferField<T extends ExtendedType> = T extends string[] ? T[number]
 	: T extends Record<string, ExtendedType> ? {
 			[K in keyof T & string as RemoveQuestionMark<K>]: InferField<T[K]> | (K extends `${string}?` ? null : never);
 		}
+	: T extends `${infer Type extends DataType}?` ? TypeMap[Type] | null
 	: T extends DataType ? TypeMap[T]
 	: never;
 
