@@ -254,7 +254,7 @@ const generateUpdate: (config: Config, store: CollectionStore, type?: string) =>
 			for (const [k, v] of entries) {
 				const target = item[k];
 
-				if (Array.isArray(target) && v.REPLACE) {
+				if (v.REPLACE) {
 					item[k] = typeof v.REPLACE === 'function'
 						? Array.isArray(target) ? target.map(v.REPLACE) : v.REPLACE(target)
 						: replaceValue(target, v.REPLACE.value, v.REPLACE.with);
