@@ -575,7 +575,7 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 						);
 					}
 
-					cloneDef[fieldName] = (commonConfig[fieldName].endsWith('?')
+					cloneDef[fieldName] = (typeof commonConfig[fieldName] === 'string' && commonConfig[fieldName].endsWith('?')
 						? commonConfig[fieldName].slice(0, commonConfig[fieldName].length - 1)
 						: commonConfig[fieldName]) as Exclude<ExtendedType, 'required'>;
 				} else {
