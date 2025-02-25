@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach } from 'vitest';
+import { beforeEach } from 'vitest';
 import { expect, expectTypeOf, test } from 'vitest';
 import { create, diff } from '../src';
 
@@ -9,16 +9,21 @@ const db = create({
 		type: 'string',
 		primaryKey: 'boolean',
 		notNull: 'boolean',
-		'autoincrement?': 'boolean',
-		default: 'string',
-		generatedType: 'string',
-		generatedAs: 'string',
+		autoincrement: 'boolean?',
+		default: 'string?',
+		generated: {
+			type: 'string',
+			as: 'string',
+		},
 	},
 	indexes: {
 		table: 'required',
-		columns: 'string[]',
+		columns: [{
+			value: 'string',
+			expression: 'boolean',
+		}],
 		isUnique: 'boolean',
-		where: 'string',
+		where: 'string?',
 	},
 	fks: {
 		table: 'required',
@@ -26,8 +31,8 @@ const db = create({
 		columnsFrom: 'string[]',
 		tableTo: 'string',
 		columnsTo: 'string[]',
-		'onUpdate?': 'string',
-		'onDelete?': 'string',
+		onUpdate: 'string?',
+		onDelete: 'string?',
 	},
 	pks: {
 		table: 'required',
@@ -42,377 +47,376 @@ const db = create({
 		value: 'string',
 	},
 	views: {
-		'definition?': 'string',
+		definition: 'string?',
 		isExisting: 'boolean',
-		en: ['2', '3'],
-		arr: 'string[]',
-		obj: [{
-			objF1: 'string',
-			'objF2?': 'boolean',
-		}],
-		'opt?': {
-			objF1: 'string',
-			'objF2?': 'boolean',
-		},
 	},
 	viewColumns: {},
 });
 
 beforeEach(() => {
 	db.entities.delete();
-	console.log(db.entities.list());
 });
 
-// TO BE REMADE
-test.skip('Insert & list entity', () => {
-	db.entityTwo.insert(
-		{
-			name: 'n1',
-			array: ['one', 'two', 'three'],
-			counter: 1,
-			alias: 'first',
-			schema: 'public',
-			table: null,
-			verified: null,
+test('Insert & list multiple entities', () => {
+	const inFirst = db.columns.insert({
+		name: 'id',
+		autoincrement: null,
+		default: null,
+		generated: {
+			type: 'always',
+			as: 'identity',
 		},
-	);
-	db.entityTwo.insert(
-		{
-			name: 'n2',
-			array: ['four', 'five', 'six'],
-			counter: 2,
-			alias: 'second',
-			schema: 'public',
-			table: 'private',
-			verified: null,
-		},
-	);
-
-	const ent1 = db.entityOne.list();
-	const ent2 = db.entityTwo.list();
-	const all = db.entities.list();
-
-	expectTypeOf(ent1).toEqualTypeOf<
-		{
-			type: string;
-			email: string | null;
-			schema: string | null;
-			table: string | null;
-			name: string;
-			entityType: 'entityOne';
-		}[]
-	>;
-	expectTypeOf(ent2).toEqualTypeOf<
-		{
-			alias: string;
-			counter: number;
-			array: string[];
-			verified: boolean | null;
-			schema: string | null;
-			table: string | null;
-			name: string;
-			entityType: 'entityTwo';
-		}[]
-	>;
-	expectTypeOf(all).toEqualTypeOf<({
-		type: string;
-		email: string | null;
-		schema: string | null;
-		table: string | null;
-		name: string;
-		entityType: 'entityOne';
-	} | {
-		alias: string;
-		counter: number;
-		array: string[];
-		verified: boolean | null;
-		schema: string | null;
-		table: string | null;
-		name: string;
-		entityType: 'entityTwo';
-	})[]>;
-
-	expect(ent1).toStrictEqual([]);
-	expect(ent2).toStrictEqual([
-		{
-			entityType: 'entityTwo',
-			name: 'n1',
-			array: ['one', 'two', 'three'],
-			counter: 1,
-			alias: 'first',
-			schema: 'public',
-			table: null,
-			verified: null,
-		},
-		{
-			entityType: 'entityTwo',
-			name: 'n2',
-			array: ['four', 'five', 'six'],
-			counter: 2,
-			alias: 'second',
-			schema: 'public',
-			table: 'private',
-			verified: null,
-		},
-	]);
-	expect(all).toStrictEqual([
-		{
-			entityType: 'entityTwo',
-			name: 'n1',
-			array: ['one', 'two', 'three'],
-			counter: 1,
-			alias: 'first',
-			schema: 'public',
-			table: null,
-			verified: null,
-		},
-		{
-			entityType: 'entityTwo',
-			name: 'n2',
-			array: ['four', 'five', 'six'],
-			counter: 2,
-			alias: 'second',
-			schema: 'public',
-			table: 'private',
-			verified: null,
-		},
-	]);
-});
-
-// TO BE REMADE
-test.skip('Insert & list multiple entities', () => {
-	db.entityOne.insert({
-		name: 'e1',
-		type: 'varchar',
-		email: null,
-		schema: null,
-		table: null,
-	});
-	db.entityOne.insert({
-		name: 'e2',
-		type: 'text',
-		email: null,
-		schema: null,
-		table: null,
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
 	});
 
-	db.entityTwo.insert(
-		{
-			name: 'n1',
-			array: ['one', 'two', 'three'],
-			counter: 1,
-			alias: 'first',
-			schema: 'public',
-			table: null,
-			verified: null,
-		},
-	);
-	db.entityTwo.insert(
-		{
-			name: 'n2',
-			array: ['four', 'five', 'six'],
-			counter: 2,
-			alias: 'second',
-			schema: 'public',
-			table: 'private',
-			verified: null,
-		},
-	);
-
-	const ent1 = db.entityOne.list();
-	const ent2 = db.entityTwo.list();
-	const all = db.entities.list();
-
-	expect(ent1).toStrictEqual([{
-		entityType: 'entityOne',
-		name: 'e1',
-		type: 'varchar',
-		email: null,
-		table: null,
-		schema: null,
-	}, {
-		entityType: 'entityOne',
-		name: 'e2',
-		type: 'text',
-		email: null,
-		table: null,
-		schema: null,
-	}]);
-	expect(ent2).toStrictEqual([
-		{
-			entityType: 'entityTwo',
-			name: 'n1',
-			array: ['one', 'two', 'three'],
-			counter: 1,
-			alias: 'first',
-			schema: 'public',
-			table: null,
-			verified: null,
-		},
-		{
-			entityType: 'entityTwo',
-			name: 'n2',
-			array: ['four', 'five', 'six'],
-			counter: 2,
-			alias: 'second',
-			schema: 'public',
-			table: 'private',
-			verified: null,
-		},
-	]);
-	expect(all).toStrictEqual([{
-		entityType: 'entityOne',
-		name: 'e1',
-		type: 'varchar',
-		email: null,
-		table: null,
-		schema: null,
-	}, {
-		entityType: 'entityOne',
-		name: 'e2',
-		type: 'text',
-		email: null,
-		table: null,
-		schema: null,
-	}, {
-		entityType: 'entityTwo',
-		name: 'n1',
-		array: ['one', 'two', 'three'],
-		counter: 1,
-		alias: 'first',
-		schema: 'public',
-		table: null,
-		verified: null,
-	}, {
-		entityType: 'entityTwo',
-		name: 'n2',
-		array: ['four', 'five', 'six'],
-		counter: 2,
-		alias: 'second',
-		schema: 'public',
-		table: 'private',
-		verified: null,
-	}]);
-});
-
-// TO BE REMADE
-test.skip('Insert & list filtered multiple entities', () => {
-	db.entityOne.insert({
-		name: 'e1',
-		type: 'varchar',
-		schema: null,
-		email: null,
-		table: null,
-	});
-	db.entityOne.insert({
-		name: 'e2',
-		type: 'text',
-		schema: 'public',
-		email: null,
-		table: null,
+	const inSecond = db.indexes.insert({
+		columns: [{
+			value: 'user_id',
+			expression: false,
+		}, {
+			value: 'group_id',
+			expression: false,
+		}],
+		table: 'users_to_groups',
+		isUnique: true,
+		name: 'utg_idx',
+		where: null,
 	});
 
-	db.entityTwo.insert(
-		{
-			name: 'n1',
-			array: ['one', 'two', 'TARGET', 'three'],
-			counter: 1,
-			alias: 'first',
-			schema: 'public',
-			verified: null,
-			table: null,
-		},
-	);
-	db.entityTwo.insert(
-		{
-			name: 'n2',
-			array: ['four', 'five', 'six', 'TARGET'],
-			counter: 2,
-			alias: 'second',
-			schema: 'public',
-			table: 'private',
-			verified: null,
-		},
-	);
-	db.entityTwo.insert(
-		{
-			name: 'n3',
-			array: ['seven', 'eight', 'nine'],
-			counter: 3,
-			alias: 'second',
-			table: 'private',
+	expect(inFirst).toStrictEqual({
+		status: 'OK',
+		data: {
+			name: 'id',
+			autoincrement: null,
+			default: null,
+			generated: {
+				type: 'always',
+				as: 'identity',
+			},
+			notNull: true,
+			primaryKey: true,
+			table: 'users',
+			type: 'string',
 			schema: null,
-			verified: null,
-		},
-	);
-
-	const ent1 = db.entityOne.list({
-		type: 'varchar',
-	});
-	const ent2 = db.entityTwo.list({
-		array: {
-			CONTAINS: 'TARGET',
+			entityType: 'columns',
 		},
 	});
-	const all = db.entities.list({
-		schema: 'public',
+
+	expect(inSecond).toStrictEqual({
+		status: 'OK',
+		data: {
+			columns: [{
+				value: 'user_id',
+				expression: false,
+			}, {
+				value: 'group_id',
+				expression: false,
+			}],
+			table: 'users_to_groups',
+			isUnique: true,
+			name: 'utg_idx',
+			where: null,
+			schema: null,
+			entityType: 'indexes',
+		},
 	});
 
-	expect(ent1).toStrictEqual([{
-		entityType: 'entityOne',
-		name: 'e1',
-		type: 'varchar',
-		email: null,
-		table: null,
+	expect(db.entities.list()).toStrictEqual([{
+		name: 'id',
+		autoincrement: null,
+		default: null,
+		generated: {
+			type: 'always',
+			as: 'identity',
+		},
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
 		schema: null,
+		entityType: 'columns',
+	}, {
+		columns: [{
+			value: 'user_id',
+			expression: false,
+		}, {
+			value: 'group_id',
+			expression: false,
+		}],
+		table: 'users_to_groups',
+		isUnique: true,
+		name: 'utg_idx',
+		where: null,
+		schema: null,
+		entityType: 'indexes',
 	}]);
-	expect(ent2).toStrictEqual([
-		{
-			entityType: 'entityTwo',
-			name: 'n1',
-			array: ['one', 'two', 'TARGET', 'three'],
-			counter: 1,
-			alias: 'first',
-			schema: 'public',
-			table: null,
-			verified: null,
+
+	expect(db.columns.list()).toStrictEqual([{
+		name: 'id',
+		autoincrement: null,
+		default: null,
+		generated: {
+			type: 'always',
+			as: 'identity',
 		},
-		{
-			entityType: 'entityTwo',
-			name: 'n2',
-			array: ['four', 'five', 'six', 'TARGET'],
-			counter: 2,
-			alias: 'second',
-			schema: 'public',
-			table: 'private',
-			verified: null,
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
+		schema: null,
+		entityType: 'columns',
+	}]);
+
+	expect(db.indexes.list()).toStrictEqual([{
+		columns: [{
+			value: 'user_id',
+			expression: false,
+		}, {
+			value: 'group_id',
+			expression: false,
+		}],
+		table: 'users_to_groups',
+		isUnique: true,
+		name: 'utg_idx',
+		where: null,
+		schema: null,
+		entityType: 'indexes',
+	}]);
+
+	expect(db.views.list()).toStrictEqual([]);
+});
+
+test('Insert with common hash conflict', () => {
+	const inFirst = db.columns.insert({
+		name: 'id',
+		autoincrement: null,
+		default: null,
+		generated: {
+			type: 'always',
+			as: 'identity',
 		},
-	]);
-	expect(all).toStrictEqual([{
-		entityType: 'entityOne',
-		name: 'e2',
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
+	});
+
+	const inSecond = db.columns.insert({
+		name: 'id',
+		autoincrement: null,
+		default: null,
+		generated: null,
+		notNull: false,
+		primaryKey: false,
+		table: 'users',
 		type: 'text',
-		email: null,
-		table: null,
-		schema: 'public',
+	});
+
+	expect(inFirst).toStrictEqual({
+		status: 'OK',
+		data: {
+			name: 'id',
+			autoincrement: null,
+			default: null,
+			generated: {
+				type: 'always',
+				as: 'identity',
+			},
+			notNull: true,
+			primaryKey: true,
+			table: 'users',
+			type: 'string',
+			schema: null,
+			entityType: 'columns',
+		},
+	});
+
+	expect(inSecond).toStrictEqual({
+		status: 'CONFLICT',
+		data: {
+			name: 'id',
+			autoincrement: null,
+			default: null,
+			generated: {
+				type: 'always',
+				as: 'identity',
+			},
+			notNull: true,
+			primaryKey: true,
+			table: 'users',
+			type: 'string',
+			schema: null,
+			entityType: 'columns',
+		},
+	});
+
+	expect(db.entities.list()).toStrictEqual([{
+		name: 'id',
+		autoincrement: null,
+		default: null,
+		generated: {
+			type: 'always',
+			as: 'identity',
+		},
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
+		schema: null,
+		entityType: 'columns',
+	}]);
+
+	expect(db.columns.list()).toStrictEqual([{
+		name: 'id',
+		autoincrement: null,
+		default: null,
+		generated: {
+			type: 'always',
+			as: 'identity',
+		},
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
+		schema: null,
+		entityType: 'columns',
+	}]);
+});
+
+test('Delete specific entities', () => {
+	db.columns.insert({
+		name: 'id',
+		autoincrement: null,
+		default: null,
+		generated: {
+			type: 'always',
+			as: 'identity',
+		},
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
+	});
+
+	db.columns.insert({
+		name: 'name',
+		autoincrement: null,
+		default: null,
+		generated: null,
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
+	});
+
+	db.indexes.insert({
+		columns: [{
+			value: 'user_id',
+			expression: false,
+		}, {
+			value: 'group_id',
+			expression: false,
+		}],
+		table: 'users_to_groups',
+		isUnique: true,
+		name: 'utg_idx',
+		where: null,
+	});
+
+	db.indexes.insert({
+		columns: [{
+			value: 'group_id',
+			expression: false,
+		}],
+		table: 'users_to_groups',
+		isUnique: false,
+		name: 'utg_g_idx',
+		where: null,
+	});
+
+	const delFirst = db.columns.delete();
+
+	const delSecond = db.indexes.delete({
+		columns: {
+			CONTAINS: {
+				value: 'user_id',
+				expression: false,
+			},
+		},
+	});
+
+	expect(delFirst).toStrictEqual([{
+		name: 'id',
+		autoincrement: null,
+		default: null,
+		generated: {
+			type: 'always',
+			as: 'identity',
+		},
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
+		schema: null,
+		entityType: 'columns',
 	}, {
-		entityType: 'entityTwo',
-		name: 'n1',
-		array: ['one', 'two', 'TARGET', 'three'],
-		counter: 1,
-		alias: 'first',
-		schema: 'public',
-		table: null,
-		verified: null,
-	}, {
-		entityType: 'entityTwo',
-		name: 'n2',
-		array: ['four', 'five', 'six', 'TARGET'],
-		counter: 2,
-		alias: 'second',
-		schema: 'public',
-		table: 'private',
-		verified: null,
+		name: 'name',
+		autoincrement: null,
+		default: null,
+		generated: null,
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
+		schema: null,
+		entityType: 'columns',
+	}]);
+
+	expect(delSecond).toStrictEqual([{
+		columns: [{
+			value: 'user_id',
+			expression: false,
+		}, {
+			value: 'group_id',
+			expression: false,
+		}],
+		table: 'users_to_groups',
+		isUnique: true,
+		name: 'utg_idx',
+		where: null,
+		schema: null,
+		entityType: 'indexes',
+	}]);
+
+	expect(db.entities.list()).toStrictEqual([{
+		columns: [{
+			value: 'group_id',
+			expression: false,
+		}],
+		table: 'users_to_groups',
+		isUnique: false,
+		name: 'utg_g_idx',
+		where: null,
+		schema: null,
+		entityType: 'indexes',
+	}]);
+
+	expect(db.columns.list()).toStrictEqual([]);
+
+	expect(db.indexes.list()).toStrictEqual([{
+		columns: [{
+			value: 'group_id',
+			expression: false,
+		}],
+		table: 'users_to_groups',
+		isUnique: false,
+		name: 'utg_g_idx',
+		where: null,
+		schema: null,
+		entityType: 'indexes',
 	}]);
 });
 

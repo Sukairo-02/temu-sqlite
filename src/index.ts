@@ -289,6 +289,8 @@ const generateDelete: (config: Config, store: CollectionStore, type?: string) =>
 			else updatedCollection.push(e);
 		});
 
+		store.collection = updatedCollection;
+
 		return deleted;
 	};
 };
