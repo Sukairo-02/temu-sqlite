@@ -394,21 +394,25 @@ export type DiffUpdate<
 			entityType: TType;
 		}
 	>,
-> = Simplify<{
-	type: 'update';
-	entityType: TType;
-	changes: Simplify<
-		& {
-			[K in Exclude<keyof TShape, keyof CommonEntity>]?: {
-				from: TShape[K];
-				to: TShape[K];
-			};
-		}
-		& {
-			[K in keyof Common as K extends keyof TShape ? null extends TShape[K] ? never : K : K]: Common[K];
-		}
-	>;
-}>;
+> = Simplify<
+	& {
+		type: 'update';
+		entityType: TType;
+		changes: Simplify<
+			{
+				[K in Exclude<keyof TShape, keyof CommonEntity>]?: {
+					from: TShape[K];
+					to: TShape[K];
+				};
+			}
+		>;
+	}
+	& {
+		[
+			K in keyof Common as K extends keyof TShape ? null extends TShape[K] ? never : K : K
+		]: Common[K];
+	}
+>;
 
 export type DiffStatement<
 	TSchema extends Definition,
@@ -514,8 +518,8 @@ export function diff<TDefinition extends Definition, TCollection extends keyof T
 				changed.push({
 					type: 'update',
 					entityType: newRow.entityType,
-					// @ts-ignore
 					name: newRow.name,
+					// @ts-ignore
 					schema: newRow.schema,
 					table: newRow.table,
 					changes: changes as (typeof changed)[number]['changes'],
