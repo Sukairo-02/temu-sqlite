@@ -420,6 +420,278 @@ test('Delete specific entities', () => {
 	}]);
 });
 
+test('Delete specific entities with common function', () => {
+	db.columns.insert({
+		name: 'id',
+		autoincrement: null,
+		default: null,
+		generated: {
+			type: 'always',
+			as: 'identity',
+		},
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
+	});
+
+	db.columns.insert({
+		name: 'name',
+		autoincrement: null,
+		default: null,
+		generated: null,
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
+	});
+
+	db.indexes.insert({
+		columns: [{
+			value: 'user_id',
+			expression: false,
+		}, {
+			value: 'group_id',
+			expression: false,
+		}],
+		table: 'users_to_groups',
+		isUnique: true,
+		name: 'utg_idx',
+		where: null,
+	});
+
+	db.indexes.insert({
+		columns: [{
+			value: 'group_id',
+			expression: false,
+		}],
+		table: 'users_to_groups',
+		isUnique: false,
+		name: 'utg_g_idx',
+		where: null,
+	});
+
+	const delFirst = db.entities.delete({
+		entityType: 'columns',
+	});
+
+	const delSecond = db.entities.delete({
+		entityType: 'indexes',
+		columns: [{
+			value: 'user_id',
+			expression: false,
+		}, {
+			value: 'group_id',
+			expression: false,
+		}],
+	});
+
+	expect(delFirst).toStrictEqual([{
+		name: 'id',
+		autoincrement: null,
+		default: null,
+		generated: {
+			type: 'always',
+			as: 'identity',
+		},
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
+		schema: null,
+		entityType: 'columns',
+	}, {
+		name: 'name',
+		autoincrement: null,
+		default: null,
+		generated: null,
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
+		schema: null,
+		entityType: 'columns',
+	}]);
+
+	expect(delSecond).toStrictEqual([{
+		columns: [{
+			value: 'user_id',
+			expression: false,
+		}, {
+			value: 'group_id',
+			expression: false,
+		}],
+		table: 'users_to_groups',
+		isUnique: true,
+		name: 'utg_idx',
+		where: null,
+		schema: null,
+		entityType: 'indexes',
+	}]);
+
+	expect(db.entities.list()).toStrictEqual([{
+		columns: [{
+			value: 'group_id',
+			expression: false,
+		}],
+		table: 'users_to_groups',
+		isUnique: false,
+		name: 'utg_g_idx',
+		where: null,
+		schema: null,
+		entityType: 'indexes',
+	}]);
+
+	expect(db.columns.list()).toStrictEqual([]);
+
+	expect(db.indexes.list()).toStrictEqual([{
+		columns: [{
+			value: 'group_id',
+			expression: false,
+		}],
+		table: 'users_to_groups',
+		isUnique: false,
+		name: 'utg_g_idx',
+		where: null,
+		schema: null,
+		entityType: 'indexes',
+	}]);
+});
+
+test('List with filters', () => {
+	db.columns.insert({
+		name: 'id',
+		autoincrement: null,
+		default: null,
+		generated: {
+			type: 'always',
+			as: 'identity',
+		},
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
+	});
+
+	db.columns.insert({
+		name: 'name',
+		autoincrement: null,
+		default: null,
+		generated: null,
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
+	});
+
+	db.indexes.insert({
+		columns: [{
+			value: 'user_id',
+			expression: false,
+		}, {
+			value: 'group_id',
+			expression: false,
+		}],
+		table: 'users_to_groups',
+		isUnique: true,
+		name: 'utg_idx',
+		where: null,
+	});
+
+	db.indexes.insert({
+		columns: [{
+			value: 'group_id',
+			expression: false,
+		}],
+		table: 'users_to_groups',
+		isUnique: false,
+		name: 'utg_g_idx',
+		where: null,
+	});
+
+	const delFirst = db.columns.delete();
+
+	const delSecond = db.indexes.delete({
+		columns: {
+			CONTAINS: {
+				value: 'user_id',
+				expression: false,
+			},
+		},
+	});
+
+	expect(delFirst).toStrictEqual([{
+		name: 'id',
+		autoincrement: null,
+		default: null,
+		generated: {
+			type: 'always',
+			as: 'identity',
+		},
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
+		schema: null,
+		entityType: 'columns',
+	}, {
+		name: 'name',
+		autoincrement: null,
+		default: null,
+		generated: null,
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
+		schema: null,
+		entityType: 'columns',
+	}]);
+
+	expect(delSecond).toStrictEqual([{
+		columns: [{
+			value: 'user_id',
+			expression: false,
+		}, {
+			value: 'group_id',
+			expression: false,
+		}],
+		table: 'users_to_groups',
+		isUnique: true,
+		name: 'utg_idx',
+		where: null,
+		schema: null,
+		entityType: 'indexes',
+	}]);
+
+	expect(db.entities.list()).toStrictEqual([{
+		columns: [{
+			value: 'group_id',
+			expression: false,
+		}],
+		table: 'users_to_groups',
+		isUnique: false,
+		name: 'utg_g_idx',
+		where: null,
+		schema: null,
+		entityType: 'indexes',
+	}]);
+
+	expect(db.columns.list()).toStrictEqual([]);
+
+	expect(db.indexes.list()).toStrictEqual([{
+		columns: [{
+			value: 'group_id',
+			expression: false,
+		}],
+		table: 'users_to_groups',
+		isUnique: false,
+		name: 'utg_g_idx',
+		where: null,
+		schema: null,
+		entityType: 'indexes',
+	}]);
+});
+
 test('diff: update', () => {
 	const cfg = {
 		column: {

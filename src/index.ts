@@ -95,10 +95,12 @@ type InferEntities<
 };
 
 type Filter<TInput extends Record<string, any> = Record<string, any>> = {
-	[K in keyof TInput]?: (TInput[K] extends (any[] | null) ? {
-			CONTAINS: TInput[K][number];
-		}
-		: TInput[K]);
+	[K in keyof TInput]?:
+		| TInput[K]
+		| (TInput[K] extends (any[] | null) ? {
+				CONTAINS: TInput[K][number];
+			}
+			: never);
 };
 
 type UpdateOperators<TInput extends Record<string, any>> = {
@@ -123,7 +125,7 @@ function matchesFilters(item: Record<string, any>, filter: Filter): boolean {
 			if (!Array.isArray(target)) return false;
 			if (!target.find((e) => isEqual(e, v.CONTAINS))) return false;
 		} else {
-			return isEqual(target, v);
+			if (!isEqual(target, v)) return false;
 		}
 	}
 
@@ -272,11 +274,12 @@ const generateDelete: (config: Config, store: CollectionStore, type?: string) =>
 		const updatedCollection = [] as Record<string, any>[];
 		const deleted = [] as Record<string, any>[];
 
-		const filter = where && type ? { ...where, entityType: type } : type
+		const filter = type
 			? {
+				...(where ?? {}),
 				entityType: type,
 			}
-			: undefined;
+			: where;
 
 		if (!filter) {
 			store.collection = updatedCollection;
