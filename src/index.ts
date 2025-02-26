@@ -256,7 +256,7 @@ const generateUpdate: (config: Config, store: CollectionStore, type?: string) =>
 				const target = item[k];
 
 				item[k] = typeof v === 'function'
-					? Array.isArray(target) ? target.map(v) : v(target)
+					? (Array.isArray(target) || config[k] === 'string[]?') ? target !== null ? target.map(v) : target : v(target)
 					: v;
 			}
 		}
@@ -361,7 +361,7 @@ export type DiffInsert<
 	& {
 		[
 			K in keyof Common as K extends keyof TShape ? null extends TShape[K] ? never : K : K
-		]: Common[K];
+		]: Exclude<Common[K], null>;
 	}
 >;
 
@@ -382,7 +382,7 @@ export type DiffDelete<
 	& {
 		[
 			K in keyof Common as K extends keyof TShape ? null extends TShape[K] ? never : K : K
-		]: Common[K];
+		]: Exclude<Common[K], null>;
 	}
 >;
 
@@ -410,7 +410,7 @@ export type DiffUpdate<
 	& {
 		[
 			K in keyof Common as K extends keyof TShape ? null extends TShape[K] ? never : K : K
-		]: Common[K];
+		]: Exclude<Common[K], null>;
 	}
 >;
 
