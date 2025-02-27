@@ -307,7 +307,7 @@ type GenerateProcessors<T extends AnyDbConfig, TTypes extends Record<string, any
 	};
 };
 
-function initSchemaProcessors<T extends DbConfig<any>>(
+function initSchemaProcessors<T extends Omit<DbConfig<any>, 'diffs'>>(
 	{ entities }: T,
 	store: CollectionStore,
 	common: boolean,
@@ -333,6 +333,20 @@ type DbConfig<TDefinition extends Definition> = {
 	entities: {
 		[K in keyof TDefinition]: Config;
 	};
+	diffs: {
+		update: {
+			[K in keyof TDefinition]: DiffUpdate<TDefinition, K>;
+		};
+		insert: {
+			[K in keyof TDefinition]: DiffInsert<TDefinition, K>;
+		};
+		delete: {
+			[K in keyof TDefinition]: DiffDelete<TDefinition, K>;
+		};
+		all: {
+			[K in keyof TDefinition]: DiffStatement<TDefinition, K>;
+		};
+	};
 	store: CollectionStore;
 };
 
@@ -346,7 +360,7 @@ type ValueOf<T> = T[keyof T];
 
 export type DiffInsert<
 	TSchema extends Definition = {},
-	TType extends string = string,
+	TType extends keyof TSchema = string,
 	TShape extends Record<string, any> = Simplify<
 		InferSchema<TSchema[TType]> & Omit<Common, keyof TSchema[TType]> & {
 			entityType: TType;
@@ -367,7 +381,7 @@ export type DiffInsert<
 
 export type DiffDelete<
 	TSchema extends Definition = {},
-	TType extends string = string,
+	TType extends keyof TSchema = string,
 	TShape extends Record<string, any> = Simplify<
 		InferSchema<TSchema[TType]> & Omit<Common, keyof TSchema[TType]> & {
 			entityType: TType;
@@ -388,7 +402,7 @@ export type DiffDelete<
 
 export type DiffUpdate<
 	TSchema extends Definition = {},
-	TType extends string = string,
+	TType extends keyof TSchema = string,
 	TShape extends Record<string, any> = Simplify<
 		InferSchema<TSchema[TType]> & Omit<Common, keyof TSchema[TType]> & {
 			entityType: TType;
@@ -547,6 +561,7 @@ export function diff<TDefinition extends Definition, TCollection extends keyof T
 
 class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 	public readonly _: DbConfig<TDefinition> = {
+		diffs: {} as any,
 		store: {
 			collection: [] as Record<string, any>[],
 		},
