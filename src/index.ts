@@ -508,14 +508,18 @@ function _diff<
 	collection = collection ?? 'entities' as TCollection;
 	mode = mode ?? 'all' as TMode;
 
-	const leftEntities = dbOld.entities.list({
-		// @ts-ignore
-		entityType: collection,
-	}) as CollectionRow[];
-	const rightEntities = dbNew.entities.list({
-		// @ts-ignore
-		entityType: collection,
-	}) as CollectionRow[];
+	const leftEntities = dbOld.entities.list(
+		collection === 'entities' ? undefined : {
+			// @ts-ignore
+			entityType: collection,
+		},
+	) as CollectionRow[];
+	const rightEntities = dbNew.entities.list(
+		collection === 'entities' ? undefined : {
+			// @ts-ignore
+			entityType: collection,
+		},
+	) as CollectionRow[];
 
 	const left: Record<string, CollectionRow> = {};
 	const right: Record<string, CollectionRow> = {};
