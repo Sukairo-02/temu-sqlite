@@ -1330,19 +1330,17 @@ test('diff: update', () => {
 		table: 'user',
 	});
 
-	const res = diff(original, changed, 'column', false);
+	const res = diff(original, changed, 'column');
 
 	expect(res).toStrictEqual([{
-		type: 'update',
+		$diffType: 'update',
 		entityType: 'column',
 		schema: null,
 		table: 'user',
 		name: 'name',
-		changes: {
-			type: {
-				from: 'varchar',
-				to: 'text',
-			},
+		type: {
+			from: 'varchar',
+			to: 'text',
 		},
 	}]);
 });
@@ -1402,43 +1400,39 @@ test('diff: update object', () => {
 		},
 	});
 
-	const res = diff(original, changed, 'column', false);
+	const res = diff(original, changed, 'column');
 
 	expect(res).toStrictEqual([{
-		type: 'update',
+		$diffType: 'update',
 		entityType: 'column',
 		schema: null,
 		table: 'user',
 		name: 'id',
-		changes: {
-			obj: {
-				from: {
-					subArr: ['s3', 's4'],
-					subfield: 'sf_value_upd',
-				},
-				to: null,
+		obj: {
+			from: {
+				subArr: ['s3', 's4'],
+				subfield: 'sf_value_upd',
 			},
+			to: null,
 		},
 	}, {
-		type: 'update',
+		$diffType: 'update',
 		entityType: 'column',
 		schema: null,
 		table: 'user',
 		name: 'name',
-		changes: {
-			type: {
-				from: 'varchar',
-				to: 'text',
+		type: {
+			from: 'varchar',
+			to: 'text',
+		},
+		obj: {
+			from: {
+				subArr: ['s1', 's2'],
+				subfield: 'sf_value',
 			},
-			obj: {
-				from: {
-					subArr: ['s1', 's2'],
-					subfield: 'sf_value',
-				},
-				to: {
-					subArr: ['s3', 's4'],
-					subfield: 'sf_value',
-				},
+			to: {
+				subArr: ['s3', 's4'],
+				subfield: 'sf_value',
 			},
 		},
 	}]);
@@ -1513,50 +1507,46 @@ test('diff: update object array', () => {
 		}],
 	});
 
-	const res = diff(original, changed, 'column', false);
+	const res = diff(original, changed, 'column');
 
 	expect(res).toStrictEqual([{
-		type: 'update',
+		$diffType: 'update',
 		entityType: 'column',
 		schema: null,
 		table: 'user',
 		name: 'id',
-		changes: {
-			obj: {
-				from: [{
-					subArr: ['s3', 's4'],
-					subfield: 'sf_value',
-				}],
-				to: [{
-					subArr: ['s3', 's4'],
-					subfield: 'sf_value',
-				}, {
-					subArr: ['s1', 's2'],
-					subfield: 'sf_value',
-				}],
-			},
+		obj: {
+			from: [{
+				subArr: ['s3', 's4'],
+				subfield: 'sf_value',
+			}],
+			to: [{
+				subArr: ['s3', 's4'],
+				subfield: 'sf_value',
+			}, {
+				subArr: ['s1', 's2'],
+				subfield: 'sf_value',
+			}],
 		},
 	}, {
-		type: 'update',
+		$diffType: 'update',
 		entityType: 'column',
 		schema: null,
 		table: 'user',
 		name: 'name',
-		changes: {
-			type: {
-				from: 'varchar',
-				to: 'text',
-			},
-			obj: {
-				from: [{
-					subArr: ['s1', 's2'],
-					subfield: 'sf_value',
-				}],
-				to: [{
-					subArr: ['s1', 's2'],
-					subfield: 'sf_value_upd',
-				}],
-			},
+		type: {
+			from: 'varchar',
+			to: 'text',
+		},
+		obj: {
+			from: [{
+				subArr: ['s1', 's2'],
+				subfield: 'sf_value',
+			}],
+			to: [{
+				subArr: ['s1', 's2'],
+				subfield: 'sf_value_upd',
+			}],
 		},
 	}]);
 });
@@ -1596,15 +1586,13 @@ test('diff: insert', () => {
 	const res = diff(original, changed, 'column');
 
 	expect(res).toStrictEqual([{
-		type: 'insert',
+		$diffType: 'insert',
 		entityType: 'column',
 		name: 'name',
 		schema: null,
 		table: 'user',
-		row: {
-			type: 'varchar',
-			pk: false,
-		},
+		type: 'varchar',
+		pk: false,
 	}]);
 });
 
@@ -1642,14 +1630,12 @@ test('diff: delete', () => {
 	const res = diff(original, changed, 'column');
 
 	expect(res).toStrictEqual([{
-		type: 'delete',
+		$diffType: 'delete',
 		entityType: 'column',
 		name: 'name',
 		table: 'user',
 		schema: null,
-		row: {
-			type: 'varchar',
-			pk: false,
-		},
+		type: 'varchar',
+		pk: false,
 	}]);
 });

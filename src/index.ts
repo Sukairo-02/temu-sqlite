@@ -335,16 +335,16 @@ type DbConfig<TDefinition extends Definition> = {
 	};
 	diffs: {
 		update: {
-			[K in keyof TDefinition]: DiffUpdate<TDefinition, K>;
+			[K in keyof TDefinition | 'entities']: DiffUpdate<TDefinition, K>;
 		};
 		insert: {
-			[K in keyof TDefinition]: DiffInsert<TDefinition, K>;
+			[K in keyof TDefinition | 'entities']: DiffInsert<TDefinition, K>;
 		};
 		delete: {
-			[K in keyof TDefinition]: DiffDelete<TDefinition, K>;
+			[K in keyof TDefinition | 'entities']: DiffDelete<TDefinition, K>;
 		};
 		all: {
-			[K in keyof TDefinition]: DiffStatement<TDefinition, K>;
+			[K in keyof TDefinition | 'entities']: DiffStatement<TDefinition, K>;
 		};
 	};
 	store: CollectionStore;
@@ -360,81 +360,94 @@ type ValueOf<T> = T[keyof T];
 
 export type DiffInsert<
 	TSchema extends Definition = {},
-	TType extends keyof TSchema = string,
-	TShape extends Record<string, any> = Simplify<
+	TType extends keyof TSchema | 'entities' = string,
+	TShape extends Record<string, any> = TType extends 'entities' ? {} : Simplify<
 		InferSchema<TSchema[TType]> & Omit<Common, keyof TSchema[TType]> & {
 			entityType: TType;
 		}
 	>,
-> = Simplify<
-	& {
-		type: 'insert';
-		entityType: TType;
-		row: Simplify<Omit<TShape, keyof CommonEntity>>;
-	}
-	& {
-		[
-			K in keyof Common as K extends keyof TShape ? null extends TShape[K] ? never : K : K
-		]: Exclude<Common[K], null>;
-	}
->;
+> = TType extends 'entities' ? ValueOf<
+		{
+			[K in keyof TSchema]: DiffInsert<TSchema, K>;
+		}
+	>
+	: Simplify<
+		& {
+			$diffType: 'insert';
+			entityType: TType;
+		}
+		& {
+			[
+				K in keyof Common as K extends keyof TShape ? null extends TShape[K] ? never : K : K
+			]: Exclude<Common[K], null>;
+		}
+		& Omit<TShape, keyof CommonEntity>
+	>;
 
 export type DiffDelete<
 	TSchema extends Definition = {},
-	TType extends keyof TSchema = string,
-	TShape extends Record<string, any> = Simplify<
+	TType extends keyof TSchema | 'entities' = string,
+	TShape extends Record<string, any> = TType extends 'entities' ? {} : Simplify<
 		InferSchema<TSchema[TType]> & Omit<Common, keyof TSchema[TType]> & {
 			entityType: TType;
 		}
 	>,
-> = Simplify<
-	& {
-		type: 'delete';
-		entityType: TType;
-		row: Simplify<Omit<TShape, keyof CommonEntity>>;
-	}
-	& {
-		[
-			K in keyof Common as K extends keyof TShape ? null extends TShape[K] ? never : K : K
-		]: Exclude<Common[K], null>;
-	}
->;
+> = TType extends 'entities' ? ValueOf<
+		{
+			[K in keyof TSchema]: DiffDelete<TSchema, K>;
+		}
+	>
+	: Simplify<
+		& {
+			$diffType: 'delete';
+			entityType: TType;
+		}
+		& {
+			[
+				K in keyof Common as K extends keyof TShape ? null extends TShape[K] ? never : K : K
+			]: Exclude<Common[K], null>;
+		}
+		& Omit<TShape, keyof CommonEntity>
+	>;
 
 export type DiffUpdate<
 	TSchema extends Definition = {},
-	TType extends keyof TSchema = string,
-	TShape extends Record<string, any> = Simplify<
+	TType extends keyof TSchema | 'entities' = string,
+	TShape extends Record<string, any> = TType extends 'entities' ? {} : Simplify<
 		InferSchema<TSchema[TType]> & Omit<Common, keyof TSchema[TType]> & {
 			entityType: TType;
 		}
 	>,
-> = Simplify<
-	& {
-		type: 'update';
-		entityType: TType;
-		changes: Simplify<
-			{
-				[K in Exclude<keyof TShape, keyof CommonEntity>]?: {
-					from: TShape[K];
-					to: TShape[K];
-				};
-			}
-		>;
-	}
-	& {
-		[
-			K in keyof Common as K extends keyof TShape ? null extends TShape[K] ? never : K : K
-		]: Exclude<Common[K], null>;
-	}
->;
+> = TType extends 'entities' ? ValueOf<
+		{
+			[K in keyof TSchema]: DiffUpdate<TSchema, K>;
+		}
+	>
+	: Simplify<
+		& {
+			$diffType: 'update';
+			entityType: TType;
+		}
+		& {
+			[
+				K in keyof Common as K extends keyof TShape ? null extends TShape[K] ? never : K : K
+			]: Exclude<Common[K], null>;
+		}
+		& {
+			[K in Exclude<keyof TShape, keyof CommonEntity>]?: {
+				from: TShape[K];
+				to: TShape[K];
+			};
+		}
+	>;
 
 export type DiffStatement<
 	TSchema extends Definition,
-	TType extends keyof TSchema,
+	TType extends keyof TSchema | 'entities',
 > =
-	| DiffInsert<TSchema, Assume<TType, string>>
-	| DiffDelete<TSchema, Assume<TType, string>>
-	| DiffUpdate<TSchema, Assume<TType, string>>;
+	| DiffInsert<TSchema, TType>
+	| DiffDelete<TSchema, TType>
+	| DiffUpdate<TSchema, TType>;
 
 type CollectionRow = Record<string, any> & Common & {
 	entityType: string;
@@ -474,12 +487,20 @@ function sanitizeRow(row: Record<string, any>) {
 	);
 }
 
-export function diff<TDefinition extends Definition, TCollection extends keyof TDefinition>(
+function _diff<
+	TDefinition extends Definition,
+	TCollection extends keyof TDefinition | 'entities' = 'entities',
+	TMode extends 'all' | 'insert' | 'delete' | 'update' = 'all',
+	TDataBase extends SimpleDb<TDefinition> = SimpleDb<TDefinition>,
+>(
 	dbOld: SimpleDb<TDefinition>,
 	dbNew: SimpleDb<TDefinition>,
-	collection: TCollection,
-	ignoreUpdates = true,
-): Simplify<DiffStatement<TDefinition, TCollection>>[] {
+	collection?: TCollection,
+	mode?: TMode,
+): Simplify<TDataBase['_']['diffs'][TMode][TCollection]>[] {
+	collection = collection ?? 'entities' as TCollection;
+	mode = mode ?? 'all' as TMode;
+
 	const leftEntities = dbOld.entities.list({
 		// @ts-ignore
 		entityType: collection,
@@ -506,16 +527,18 @@ export function diff<TDefinition extends Definition, TCollection extends keyof T
 	for (const [key, oldRow] of Object.entries(left)) {
 		const newRow = right[key];
 		if (!newRow) {
-			deleted.push({
-				type: 'delete',
-				entityType: oldRow.entityType,
-				name: oldRow.name,
-				// @ts-ignore
-				schema: oldRow.schema,
-				table: oldRow.table,
-				row: sanitizeRow(oldRow),
-			});
-		} else if (!ignoreUpdates) {
+			if (mode === 'all' || mode === 'delete') {
+				deleted.push({
+					$diffType: 'delete',
+					entityType: oldRow.entityType,
+					name: oldRow.name,
+					// @ts-ignore
+					schema: oldRow.schema,
+					table: oldRow.table,
+					...sanitizeRow(oldRow),
+				});
+			}
+		} else if (mode === 'all' || mode === 'update') {
 			const changes: Record<string, any> = {};
 			let isChanged = false;
 
@@ -530,13 +553,13 @@ export function diff<TDefinition extends Definition, TCollection extends keyof T
 
 			if (isChanged) {
 				changed.push({
-					type: 'update',
+					$diffType: 'update',
 					entityType: newRow.entityType,
 					name: newRow.name,
 					// @ts-ignore
 					schema: newRow.schema,
 					table: newRow.table,
-					changes: changes as (typeof changed)[number]['changes'],
+					...changes,
 				});
 			}
 		}
@@ -544,19 +567,51 @@ export function diff<TDefinition extends Definition, TCollection extends keyof T
 		delete right[key];
 	}
 
-	for (const newRow of Object.values(right)) {
-		inserted.push({
-			type: 'insert',
-			entityType: newRow.entityType as string,
-			name: newRow.name,
-			// @ts-ignore
-			schema: newRow.schema,
-			table: newRow.table,
-			row: sanitizeRow(newRow),
-		});
+	if (mode === 'all' || mode === 'insert') {
+		for (const newRow of Object.values(right)) {
+			inserted.push({
+				$diffType: 'insert',
+				entityType: newRow.entityType as string,
+				name: newRow.name,
+				// @ts-ignore
+				schema: newRow.schema,
+				table: newRow.table,
+				...sanitizeRow(newRow),
+			});
+		}
 	}
 
-	return [...inserted, ...deleted, ...changed] as any as DiffStatement<TDefinition, TCollection>[];
+	return [...inserted, ...deleted, ...changed] as any;
+}
+
+export function diff<
+	TDefinition extends Definition,
+	TCollection extends keyof TDefinition | 'entities' = 'entities',
+>(dbOld: SimpleDb<TDefinition>, dbNew: SimpleDb<TDefinition>, collection?: TCollection) {
+	return _diff(dbOld, dbNew, collection, 'all');
+}
+
+export namespace diff {
+	export function inserts<
+		TDefinition extends Definition,
+		TCollection extends keyof TDefinition | 'entities' = 'entities',
+	>(dbOld: SimpleDb<TDefinition>, dbNew: SimpleDb<TDefinition>, collection?: TCollection) {
+		return _diff(dbOld, dbNew, collection, 'insert');
+	}
+
+	export function deletes<
+		TDefinition extends Definition,
+		TCollection extends keyof TDefinition | 'entities' = 'entities',
+	>(dbOld: SimpleDb<TDefinition>, dbNew: SimpleDb<TDefinition>, collection?: TCollection) {
+		return _diff(dbOld, dbNew, collection, 'insert');
+	}
+
+	export function updates<
+		TDefinition extends Definition,
+		TCollection extends keyof TDefinition | 'entities' = 'entities',
+	>(dbOld: SimpleDb<TDefinition>, dbNew: SimpleDb<TDefinition>, collection?: TCollection) {
+		return _diff(dbOld, dbNew, collection, 'update');
+	}
 }
 
 class SimpleDb<TDefinition extends Definition = Record<string, any>> {
