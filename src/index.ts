@@ -88,7 +88,11 @@ type InferEntities<
 	TDefinition extends Definition,
 > = {
 	[K in keyof TDefinition]: Simplify<
-		InferSchema<TDefinition[K]> & Omit<Common, keyof TDefinition[K]> & {
+		& InferSchema<TDefinition[K]>
+		& {
+			[C in keyof Common as C extends keyof TDefinition[K] ? never : null extends Common[C] ? never : C]: Common[C];
+		}
+		& {
 			entityType: K;
 		}
 	>;
@@ -343,6 +347,9 @@ type DbConfig<TDefinition extends Definition> = {
 		delete: {
 			[K in keyof TDefinition | 'entities']: DiffDelete<TDefinition, K>;
 		};
+		insertdelete: {
+			[K in keyof TDefinition | 'entities']: DiffInsert<TDefinition, K> | DiffDelete<TDefinition, K>;
+		};
 		all: {
 			[K in keyof TDefinition | 'entities']: DiffStatement<TDefinition, K>;
 		};
@@ -490,7 +497,7 @@ function sanitizeRow(row: Record<string, any>) {
 function _diff<
 	TDefinition extends Definition,
 	TCollection extends keyof TDefinition | 'entities' = 'entities',
-	TMode extends 'all' | 'insert' | 'delete' | 'update' = 'all',
+	TMode extends 'all' | 'insert' | 'delete' | 'insertdelete' | 'update' = 'all',
 	TDataBase extends SimpleDb<TDefinition> = SimpleDb<TDefinition>,
 >(
 	dbOld: SimpleDb<TDefinition>,
@@ -527,7 +534,7 @@ function _diff<
 	for (const [key, oldRow] of Object.entries(left)) {
 		const newRow = right[key];
 		if (!newRow) {
-			if (mode === 'all' || mode === 'delete') {
+			if (mode === 'all' || mode === 'delete' || mode === 'insertdelete') {
 				deleted.push({
 					$diffType: 'delete',
 					entityType: oldRow.entityType,
@@ -567,7 +574,7 @@ function _diff<
 		delete right[key];
 	}
 
-	if (mode === 'all' || mode === 'insert') {
+	if (mode === 'all' || mode === 'insert' || mode === 'insertdelete') {
 		for (const newRow of Object.values(right)) {
 			inserted.push({
 				$diffType: 'insert',
@@ -588,10 +595,17 @@ export function diff<
 	TDefinition extends Definition,
 	TCollection extends keyof TDefinition | 'entities' = 'entities',
 >(dbOld: SimpleDb<TDefinition>, dbNew: SimpleDb<TDefinition>, collection?: TCollection) {
-	return _diff(dbOld, dbNew, collection, 'all');
+	return _diff(dbOld, dbNew, collection, 'insertdelete');
 }
 
 export namespace diff {
+	export function all<
+		TDefinition extends Definition,
+		TCollection extends keyof TDefinition | 'entities' = 'entities',
+	>(dbOld: SimpleDb<TDefinition>, dbNew: SimpleDb<TDefinition>, collection?: TCollection) {
+		return _diff(dbOld, dbNew, collection, 'all');
+	}
+
 	export function inserts<
 		TDefinition extends Definition,
 		TCollection extends keyof TDefinition | 'entities' = 'entities',
@@ -603,7 +617,7 @@ export namespace diff {
 		TDefinition extends Definition,
 		TCollection extends keyof TDefinition | 'entities' = 'entities',
 	>(dbOld: SimpleDb<TDefinition>, dbNew: SimpleDb<TDefinition>, collection?: TCollection) {
-		return _diff(dbOld, dbNew, collection, 'insert');
+		return _diff(dbOld, dbNew, collection, 'delete');
 	}
 
 	export function updates<
@@ -628,7 +642,13 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 				entities: InferEntities<TDefinition> extends infer TInferred ? Simplify<
 						ValueOf<
 							{
-								[K in keyof TInferred]: TInferred[K];
+								[K in keyof TInferred]:
+									& TInferred[K]
+									& {
+										[C in keyof Common]: C extends keyof TInferred[K] ? null extends TInferred[K][C] ? Common[C]
+											: Exclude<Common[C], null>
+											: Common[C];
+									};
 							}
 						>
 					>

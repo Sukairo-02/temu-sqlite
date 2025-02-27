@@ -1330,7 +1330,7 @@ test('diff: update', () => {
 		table: 'user',
 	});
 
-	const res = diff(original, changed, 'column');
+	const res = diff.updates(original, changed, 'column');
 
 	expect(res).toStrictEqual([{
 		$diffType: 'update',
@@ -1400,7 +1400,7 @@ test('diff: update object', () => {
 		},
 	});
 
-	const res = diff(original, changed, 'column');
+	const res = diff.updates(original, changed, 'column');
 
 	expect(res).toStrictEqual([{
 		$diffType: 'update',
@@ -1507,7 +1507,7 @@ test('diff: update object array', () => {
 		}],
 	});
 
-	const res = diff(original, changed, 'column');
+	const res = diff.updates(original, changed, 'column');
 
 	expect(res).toStrictEqual([{
 		$diffType: 'update',
