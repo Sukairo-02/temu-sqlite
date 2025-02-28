@@ -191,7 +191,7 @@ type InsertFn<
 };
 type ListFn<TInput extends Record<string, any>> = (where?: Filter<TInput>) => TInput[];
 type UpdateFn<TInput extends Record<string, any>> = (
-	config: { value: Simplify<UpdateOperators<Omit<TInput, 'entityType'>>>; filter?: Filter<TInput> },
+	config: { set: Simplify<UpdateOperators<Omit<TInput, 'entityType'>>>; where?: Filter<TInput> },
 ) => TInput[];
 type DeleteFn<TInput extends Record<string, any>> = (where?: Filter<TInput>) => TInput[];
 
@@ -244,7 +244,7 @@ const generateUpdate: (config: Config, store: CollectionStore, type?: string) =>
 	store,
 	type,
 ) => {
-	return ({ value, filter: where }) => {
+	return ({ set, where }) => {
 		const filter = type
 			? {
 				...(where ?? {}),
@@ -253,7 +253,7 @@ const generateUpdate: (config: Config, store: CollectionStore, type?: string) =>
 			: where;
 
 		const targets = filter ? filterCollection(store.collection, filter) : store.collection;
-		const entries = Object.entries(value);
+		const entries = Object.entries(set);
 
 		for (const item of targets) {
 			for (const [k, v] of entries) {
@@ -338,17 +338,17 @@ type DbConfig<TDefinition extends Definition> = {
 		[K in keyof TDefinition]: Config;
 	};
 	diffs: {
-		update: {
-			[K in keyof TDefinition | 'entities']: DiffUpdate<TDefinition, K>;
+		alter: {
+			[K in keyof TDefinition | 'entities']: DiffAlter<TDefinition, K>;
 		};
-		insert: {
-			[K in keyof TDefinition | 'entities']: DiffInsert<TDefinition, K>;
+		create: {
+			[K in keyof TDefinition | 'entities']: DiffCreate<TDefinition, K>;
 		};
-		delete: {
-			[K in keyof TDefinition | 'entities']: DiffDelete<TDefinition, K>;
+		drop: {
+			[K in keyof TDefinition | 'entities']: DiffDrop<TDefinition, K>;
 		};
-		insertdelete: {
-			[K in keyof TDefinition | 'entities']: DiffInsert<TDefinition, K> | DiffDelete<TDefinition, K>;
+		createdrop: {
+			[K in keyof TDefinition | 'entities']: DiffCreate<TDefinition, K> | DiffDrop<TDefinition, K>;
 		};
 		all: {
 			[K in keyof TDefinition | 'entities']: DiffStatement<TDefinition, K>;
@@ -365,7 +365,7 @@ type AnyDbConfig = {
 
 type ValueOf<T> = T[keyof T];
 
-export type DiffInsert<
+export type DiffCreate<
 	TSchema extends Definition = {},
 	TType extends keyof TSchema | 'entities' = string,
 	TShape extends Record<string, any> = TType extends 'entities' ? {} : Simplify<
@@ -375,12 +375,12 @@ export type DiffInsert<
 	>,
 > = TType extends 'entities' ? ValueOf<
 		{
-			[K in keyof TSchema]: DiffInsert<TSchema, K>;
+			[K in keyof TSchema]: DiffCreate<TSchema, K>;
 		}
 	>
 	: Simplify<
 		& {
-			$diffType: 'insert';
+			$diffType: 'create';
 			entityType: TType;
 		}
 		& {
@@ -391,7 +391,7 @@ export type DiffInsert<
 		& Omit<TShape, keyof CommonEntity>
 	>;
 
-export type DiffDelete<
+export type DiffDrop<
 	TSchema extends Definition = {},
 	TType extends keyof TSchema | 'entities' = string,
 	TShape extends Record<string, any> = TType extends 'entities' ? {} : Simplify<
@@ -401,12 +401,12 @@ export type DiffDelete<
 	>,
 > = TType extends 'entities' ? ValueOf<
 		{
-			[K in keyof TSchema]: DiffDelete<TSchema, K>;
+			[K in keyof TSchema]: DiffDrop<TSchema, K>;
 		}
 	>
 	: Simplify<
 		& {
-			$diffType: 'delete';
+			$diffType: 'drop';
 			entityType: TType;
 		}
 		& {
@@ -417,7 +417,7 @@ export type DiffDelete<
 		& Omit<TShape, keyof CommonEntity>
 	>;
 
-export type DiffUpdate<
+export type DiffAlter<
 	TSchema extends Definition = {},
 	TType extends keyof TSchema | 'entities' = string,
 	TShape extends Record<string, any> = TType extends 'entities' ? {} : Simplify<
@@ -427,12 +427,12 @@ export type DiffUpdate<
 	>,
 > = TType extends 'entities' ? ValueOf<
 		{
-			[K in keyof TSchema]: DiffUpdate<TSchema, K>;
+			[K in keyof TSchema]: DiffAlter<TSchema, K>;
 		}
 	>
 	: Simplify<
 		& {
-			$diffType: 'update';
+			$diffType: 'alter';
 			entityType: TType;
 		}
 		& {
@@ -452,9 +452,9 @@ export type DiffStatement<
 	TSchema extends Definition,
 	TType extends keyof TSchema | 'entities',
 > =
-	| DiffInsert<TSchema, TType>
-	| DiffDelete<TSchema, TType>
-	| DiffUpdate<TSchema, TType>;
+	| DiffCreate<TSchema, TType>
+	| DiffDrop<TSchema, TType>
+	| DiffAlter<TSchema, TType>;
 
 type CollectionRow = Record<string, any> & Common & {
 	entityType: string;
@@ -497,7 +497,7 @@ function sanitizeRow(row: Record<string, any>) {
 function _diff<
 	TDefinition extends Definition,
 	TCollection extends keyof TDefinition | 'entities' = 'entities',
-	TMode extends 'all' | 'insert' | 'delete' | 'insertdelete' | 'update' = 'all',
+	TMode extends 'all' | 'create' | 'drop' | 'createdrop' | 'alter' = 'all',
 	TDataBase extends SimpleDb<TDefinition> = SimpleDb<TDefinition>,
 >(
 	dbOld: SimpleDb<TDefinition>,
@@ -531,16 +531,16 @@ function _diff<
 		right[getCompositeKey(row)] = row;
 	}
 
-	const inserted: DiffInsert[] = [];
-	const deleted: DiffDelete[] = [];
-	const changed: DiffUpdate[] = [];
+	const created: DiffCreate[] = [];
+	const dropped: DiffDrop[] = [];
+	const altered: DiffAlter[] = [];
 
 	for (const [key, oldRow] of Object.entries(left)) {
 		const newRow = right[key];
 		if (!newRow) {
-			if (mode === 'all' || mode === 'delete' || mode === 'insertdelete') {
-				deleted.push({
-					$diffType: 'delete',
+			if (mode === 'all' || mode === 'drop' || mode === 'createdrop') {
+				dropped.push({
+					$diffType: 'drop',
 					entityType: oldRow.entityType,
 					name: oldRow.name,
 					// @ts-ignore
@@ -549,7 +549,7 @@ function _diff<
 					...sanitizeRow(oldRow),
 				});
 			}
-		} else if (mode === 'all' || mode === 'update') {
+		} else if (mode === 'all' || mode === 'alter') {
 			const changes: Record<string, any> = {};
 			let isChanged = false;
 
@@ -563,8 +563,8 @@ function _diff<
 			}
 
 			if (isChanged) {
-				changed.push({
-					$diffType: 'update',
+				altered.push({
+					$diffType: 'alter',
 					entityType: newRow.entityType,
 					name: newRow.name,
 					// @ts-ignore
@@ -578,10 +578,10 @@ function _diff<
 		delete right[key];
 	}
 
-	if (mode === 'all' || mode === 'insert' || mode === 'insertdelete') {
+	if (mode === 'all' || mode === 'create' || mode === 'createdrop') {
 		for (const newRow of Object.values(right)) {
-			inserted.push({
-				$diffType: 'insert',
+			created.push({
+				$diffType: 'create',
 				entityType: newRow.entityType as string,
 				name: newRow.name,
 				// @ts-ignore
@@ -592,14 +592,14 @@ function _diff<
 		}
 	}
 
-	return [...inserted, ...deleted, ...changed] as any;
+	return [...created, ...dropped, ...altered] as any;
 }
 
 export function diff<
 	TDefinition extends Definition,
 	TCollection extends keyof TDefinition | 'entities' = 'entities',
 >(dbOld: SimpleDb<TDefinition>, dbNew: SimpleDb<TDefinition>, collection?: TCollection) {
-	return _diff(dbOld, dbNew, collection, 'insertdelete');
+	return _diff(dbOld, dbNew, collection, 'createdrop');
 }
 
 export namespace diff {
@@ -610,25 +610,25 @@ export namespace diff {
 		return _diff(dbOld, dbNew, collection, 'all');
 	}
 
-	export function inserts<
+	export function creates<
 		TDefinition extends Definition,
 		TCollection extends keyof TDefinition | 'entities' = 'entities',
 	>(dbOld: SimpleDb<TDefinition>, dbNew: SimpleDb<TDefinition>, collection?: TCollection) {
-		return _diff(dbOld, dbNew, collection, 'insert');
+		return _diff(dbOld, dbNew, collection, 'create');
 	}
 
-	export function deletes<
+	export function drops<
 		TDefinition extends Definition,
 		TCollection extends keyof TDefinition | 'entities' = 'entities',
 	>(dbOld: SimpleDb<TDefinition>, dbNew: SimpleDb<TDefinition>, collection?: TCollection) {
-		return _diff(dbOld, dbNew, collection, 'delete');
+		return _diff(dbOld, dbNew, collection, 'drop');
 	}
 
-	export function updates<
+	export function alters<
 		TDefinition extends Definition,
 		TCollection extends keyof TDefinition | 'entities' = 'entities',
 	>(dbOld: SimpleDb<TDefinition>, dbNew: SimpleDb<TDefinition>, collection?: TCollection) {
-		return _diff(dbOld, dbNew, collection, 'update');
+		return _diff(dbOld, dbNew, collection, 'alter');
 	}
 }
 

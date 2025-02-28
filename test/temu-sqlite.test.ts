@@ -610,13 +610,13 @@ test('Update entities', () => {
 	});
 
 	const updFirst = db.columns.update({
-		value: {
+		set: {
 			type: 'bigint',
 		},
 	});
 
 	const updSecond = db.indexes.update({
-		value: {
+		set: {
 			where: 'whereExp',
 			columns: (c) => {
 				return {
@@ -625,7 +625,7 @@ test('Update entities', () => {
 				};
 			},
 		},
-		filter: {
+		where: {
 			columns: {
 				CONTAINS: {
 					value: 'user_id',
@@ -862,16 +862,16 @@ test('Update entities with common function', () => {
 	});
 
 	const updFirst = db.entities.update({
-		value: {
+		set: {
 			table: 'upd_tbl',
 		},
 	});
 
 	const updSecond = db.entities.update({
-		value: {
+		set: {
 			schema: 'idx_upd_schema',
 		},
-		filter: {
+		where: {
 			columns: [
 				{
 					expression: false,
@@ -1330,10 +1330,59 @@ test('diff: update', () => {
 		table: 'user',
 	});
 
-	const res = diff.updates(original, changed, 'column');
+	const res = diff.alters(original, changed, 'column');
+
+	expect(diff.all(original, changed, 'column')).toStrictEqual([{
+		$diffType: 'alter',
+		entityType: 'column',
+		schema: null,
+		table: 'user',
+		name: 'name',
+		type: {
+			from: 'varchar',
+			to: 'text',
+		},
+	}]);
+	expect(diff.all(original, changed)).toStrictEqual([{
+		$diffType: 'alter',
+		entityType: 'column',
+		schema: null,
+		table: 'user',
+		name: 'name',
+		type: {
+			from: 'varchar',
+			to: 'text',
+		},
+	}]);
+	expect(diff.drops(original, changed, 'column')).toStrictEqual([]);
+	expect(diff.drops(original, changed)).toStrictEqual([]);
+	expect(diff.alters(original, changed, 'column')).toStrictEqual([{
+		$diffType: 'alter',
+		entityType: 'column',
+		schema: null,
+		table: 'user',
+		name: 'name',
+		type: {
+			from: 'varchar',
+			to: 'text',
+		},
+	}]);
+	expect(diff.alters(original, changed)).toStrictEqual([{
+		$diffType: 'alter',
+		entityType: 'column',
+		schema: null,
+		table: 'user',
+		name: 'name',
+		type: {
+			from: 'varchar',
+			to: 'text',
+		},
+	}]);
+	expect(diff.creates(original, changed, 'column')).toStrictEqual([]);
+	expect(diff.creates(original, changed)).toStrictEqual([]);
 
 	expect(res).toStrictEqual([{
-		$diffType: 'update',
+		$diffType: 'alter',
 		entityType: 'column',
 		schema: null,
 		table: 'user',
@@ -1400,10 +1449,10 @@ test('diff: update object', () => {
 		},
 	});
 
-	const res = diff.updates(original, changed, 'column');
+	const res = diff.alters(original, changed, 'column');
 
 	expect(res).toStrictEqual([{
-		$diffType: 'update',
+		$diffType: 'alter',
 		entityType: 'column',
 		schema: null,
 		table: 'user',
@@ -1416,7 +1465,7 @@ test('diff: update object', () => {
 			to: null,
 		},
 	}, {
-		$diffType: 'update',
+		$diffType: 'alter',
 		entityType: 'column',
 		schema: null,
 		table: 'user',
@@ -1507,10 +1556,10 @@ test('diff: update object array', () => {
 		}],
 	});
 
-	const res = diff.updates(original, changed, 'column');
+	const res = diff.alters(original, changed, 'column');
 
 	expect(res).toStrictEqual([{
-		$diffType: 'update',
+		$diffType: 'alter',
 		entityType: 'column',
 		schema: null,
 		table: 'user',
@@ -1529,7 +1578,7 @@ test('diff: update object array', () => {
 			}],
 		},
 	}, {
-		$diffType: 'update',
+		$diffType: 'alter',
 		entityType: 'column',
 		schema: null,
 		table: 'user',
@@ -1585,8 +1634,49 @@ test('diff: insert', () => {
 
 	const res = diff(original, changed, 'column');
 
+	expect(diff.all(original, changed, 'column')).toStrictEqual([{
+		$diffType: 'create',
+		entityType: 'column',
+		name: 'name',
+		schema: null,
+		table: 'user',
+		type: 'varchar',
+		pk: false,
+	}]);
+	expect(diff.all(original, changed)).toStrictEqual([{
+		$diffType: 'create',
+		entityType: 'column',
+		name: 'name',
+		schema: null,
+		table: 'user',
+		type: 'varchar',
+		pk: false,
+	}]);
+	expect(diff.drops(original, changed, 'column')).toStrictEqual([]);
+	expect(diff.drops(original, changed)).toStrictEqual([]);
+	expect(diff.alters(original, changed, 'column')).toStrictEqual([]);
+	expect(diff.alters(original, changed)).toStrictEqual([]);
+	expect(diff.creates(original, changed, 'column')).toStrictEqual([{
+		$diffType: 'create',
+		entityType: 'column',
+		name: 'name',
+		schema: null,
+		table: 'user',
+		type: 'varchar',
+		pk: false,
+	}]);
+	expect(diff.creates(original, changed)).toStrictEqual([{
+		$diffType: 'create',
+		entityType: 'column',
+		name: 'name',
+		schema: null,
+		table: 'user',
+		type: 'varchar',
+		pk: false,
+	}]);
+
 	expect(res).toStrictEqual([{
-		$diffType: 'insert',
+		$diffType: 'create',
 		entityType: 'column',
 		name: 'name',
 		schema: null,
@@ -1629,8 +1719,49 @@ test('diff: delete', () => {
 	});
 	const res = diff(original, changed, 'column');
 
+	expect(diff.all(original, changed, 'column')).toStrictEqual([{
+		$diffType: 'drop',
+		entityType: 'column',
+		name: 'name',
+		table: 'user',
+		schema: null,
+		type: 'varchar',
+		pk: false,
+	}]);
+	expect(diff.all(original, changed)).toStrictEqual([{
+		$diffType: 'drop',
+		entityType: 'column',
+		name: 'name',
+		table: 'user',
+		schema: null,
+		type: 'varchar',
+		pk: false,
+	}]);
+	expect(diff.drops(original, changed, 'column')).toStrictEqual([{
+		$diffType: 'drop',
+		entityType: 'column',
+		name: 'name',
+		table: 'user',
+		schema: null,
+		type: 'varchar',
+		pk: false,
+	}]);
+	expect(diff.drops(original, changed)).toStrictEqual([{
+		$diffType: 'drop',
+		entityType: 'column',
+		name: 'name',
+		table: 'user',
+		schema: null,
+		type: 'varchar',
+		pk: false,
+	}]);
+	expect(diff.alters(original, changed, 'column')).toStrictEqual([]);
+	expect(diff.alters(original, changed)).toStrictEqual([]);
+	expect(diff.creates(original, changed, 'column')).toStrictEqual([]);
+	expect(diff.creates(original, changed)).toStrictEqual([]);
+
 	expect(res).toStrictEqual([{
-		$diffType: 'delete',
+		$diffType: 'drop',
 		entityType: 'column',
 		name: 'name',
 		table: 'user',
