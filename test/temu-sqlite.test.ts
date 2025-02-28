@@ -124,6 +124,24 @@ test('Insert & list multiple entities', () => {
 		},
 	});
 
+	expect(db.entities.one()).toStrictEqual({
+		name: 'id',
+		autoincrement: null,
+		default: null,
+		generated: {
+			type: 'always',
+			as: 'identity',
+		},
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
+		schema: null,
+		entityType: 'columns',
+	});
+
+	expect(db.pks.one()).toStrictEqual(null);
+
 	expect(db.entities.list()).toStrictEqual([{
 		name: 'id',
 		autoincrement: null,

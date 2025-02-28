@@ -190,6 +190,7 @@ type InsertFn<
 	data: TInput extends [Record<string, any>, Record<string, any>, ...Record<string, any>[]] ? TInput[] : TInput;
 };
 type ListFn<TInput extends Record<string, any>> = (where?: Filter<TInput>) => TInput[];
+type OneFn<TInput extends Record<string, any>> = (where?: Filter<TInput>) => TInput | null;
 type UpdateFn<TInput extends Record<string, any>> = (
 	config: { set: Simplify<UpdateOperators<Omit<TInput, 'entityType'>>>; where?: Filter<TInput> },
 ) => TInput[];
@@ -236,6 +237,24 @@ const generateList: (config: Config, store: CollectionStore, type?: string) => L
 		if (!where) return from;
 
 		return (filterCollection(from, where));
+	};
+};
+
+const generateOne: (config: Config, store: CollectionStore, type?: string) => OneFn<any> = (
+	config,
+	store,
+	type,
+) => {
+	return (where) => {
+		const from = type
+			? filterCollection(store.collection, {
+				entityType: type,
+			})
+			: store.collection;
+
+		if (!where) return from[0] ?? null;
+
+		return (filterCollection(from, where)[0] ?? null);
 	};
 };
 
@@ -306,6 +325,7 @@ type GenerateProcessors<T extends AnyDbConfig, TTypes extends Record<string, any
 	[K in keyof TTypes]: {
 		insert: InsertFn<TTypes[K]>;
 		list: ListFn<TTypes[K]>;
+		one: OneFn<TTypes[K]>;
 		update: UpdateFn<TTypes[K]>;
 		delete: DeleteFn<TTypes[K]>;
 	};
@@ -322,6 +342,7 @@ function initSchemaProcessors<T extends Omit<DbConfig<any>, 'diffs'>>(
 		return [k, {
 			insert: generateInsert(v, store, k),
 			list: generateList(v, store, common ? undefined : k),
+			one: generateOne(v, store, common ? undefined : k),
 			update: generateUpdate(v, store, common ? undefined : k),
 			delete: generateDelete(v, store, common ? undefined : k),
 		}];
