@@ -166,25 +166,39 @@ function replaceValue(arr: Array<any>, target: any, update: any) {
 	return arr;
 }
 
-export type InferInsert<TShape extends Record<string, any>> = Simplify<
-	Omit<
-		NullAsUndefined<
-			{
-				[
-					K in keyof TShape as K extends keyof Common
-						? (null extends Common[K] ? null extends TShape[K] ? never : K : K)
-						: K
-				]: TShape[K];
-			}
-		>,
-		'entityType'
+export type InferInsert<TShape extends Record<string, any>, TCommon extends boolean = false> = TShape extends
+	infer Shape ? Simplify<
+		TCommon extends true ? NullAsUndefined<
+				{
+					[
+						K in keyof Shape as K extends keyof Common ? (null extends Common[K] ? null extends Shape[K] ? never
+								: K
+								: K)
+							: K
+					]: Shape[K];
+				}
+			>
+			: Omit<
+				NullAsUndefined<
+					{
+						[
+							K in keyof TShape as K extends keyof Common ? (null extends Common[K] ? null extends TShape[K] ? never
+									: K
+									: K)
+								: K
+						]: TShape[K];
+					}
+				>,
+				'entityType'
+			>
 	>
->;
+	: never;
 
 type InsertFn<
 	TInput extends Record<string, any>,
+	TCommon extends boolean = false,
 > = (
-	input: InferInsert<TInput>,
+	input: InferInsert<TInput, TCommon>,
 ) => {
 	status: 'OK' | 'CONFLICT';
 	data: TInput extends [Record<string, any>, Record<string, any>, ...Record<string, any>[]] ? TInput[] : TInput;
@@ -196,7 +210,7 @@ type UpdateFn<TInput extends Record<string, any>> = (
 ) => TInput[];
 type DeleteFn<TInput extends Record<string, any>> = (where?: Filter<TInput>) => TInput[];
 
-const generateInsert: (config: Config, store: CollectionStore, type: string) => InsertFn<any> = (
+const generateInsert: (config: Config, store: CollectionStore, type?: string) => InsertFn<any> = (
 	config,
 	store,
 	type,
@@ -208,7 +222,7 @@ const generateInsert: (config: Config, store: CollectionStore, type: string) => 
 		const mapped = {
 			...nulls,
 			...filteredElement,
-			entityType: type,
+			entityType: type ?? filteredElement.entityType,
 		};
 
 		const conflict = findCompositeKey(store.collection as CommonEntity[], mapped as CommonEntity);
@@ -321,9 +335,13 @@ const generateDelete: (config: Config, store: CollectionStore, type?: string) =>
 	};
 };
 
-type GenerateProcessors<T extends AnyDbConfig, TTypes extends Record<string, any> = T['types']> = {
+type GenerateProcessors<
+	T extends AnyDbConfig,
+	TCommon extends boolean = false,
+	TTypes extends Record<string, any> = T['types'],
+> = {
 	[K in keyof TTypes]: {
-		insert: InsertFn<TTypes[K]>;
+		insert: InsertFn<TTypes[K], TCommon>;
 		list: ListFn<TTypes[K]>;
 		one: OneFn<TTypes[K]>;
 		update: UpdateFn<TTypes[K]>;
@@ -331,16 +349,16 @@ type GenerateProcessors<T extends AnyDbConfig, TTypes extends Record<string, any
 	};
 };
 
-function initSchemaProcessors<T extends Omit<DbConfig<any>, 'diffs'>>(
+function initSchemaProcessors<T extends Omit<DbConfig<any>, 'diffs'>, TCommon extends boolean>(
 	{ entities }: T,
 	store: CollectionStore,
-	common: boolean,
-): GenerateProcessors<T> {
+	common: TCommon,
+): GenerateProcessors<T, TCommon> {
 	const entries = Object.entries(entities);
 
 	return Object.fromEntries(entries.map(([k, v]) => {
 		return [k, {
-			insert: generateInsert(v, store, k),
+			insert: generateInsert(v, store, common ? undefined : k),
 			list: generateList(v, store, common ? undefined : k),
 			one: generateOne(v, store, common ? undefined : k),
 			update: generateUpdate(v, store, common ? undefined : k),
@@ -661,28 +679,25 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 		},
 	} as any;
 
-	public entities: Omit<
-		GenerateProcessors<{
-			types: {
-				entities: InferEntities<TDefinition> extends infer TInferred ? Simplify<
-						ValueOf<
-							{
-								[K in keyof TInferred]:
-									& TInferred[K]
-									& {
-										[C in keyof Common]: C extends keyof TInferred[K] ? null extends TInferred[K][C] ? Common[C]
-											: Exclude<Common[C], null>
-											: Common[C];
-									};
-							}
-						>
+	public entities: GenerateProcessors<{
+		types: {
+			entities: InferEntities<TDefinition> extends infer TInferred ? Simplify<
+					ValueOf<
+						{
+							[K in keyof TInferred]:
+								& TInferred[K]
+								& {
+									[C in keyof Common]: C extends keyof TInferred[K] ? null extends TInferred[K][C] ? Common[C]
+										: Exclude<Common[C], null>
+										: Common[C];
+								};
+						}
 					>
-					: never;
-			};
-			entities: any;
-		}>['entities'],
-		'insert'
-	>;
+				>
+				: never;
+		};
+		entities: any;
+	}, true>['entities'];
 
 	constructor(definition: TDefinition) {
 		const entries = Object.entries(definition);
