@@ -1419,19 +1419,29 @@ test('Validate', () => {
 		name: 'tbl',
 	};
 
+	expect(db.entities.validate(table)).toStrictEqual(true);
+	expect(db.tables.validate(table)).toStrictEqual(true);
+	expect(db.views.validate(table)).toStrictEqual(false);
+
 	const deformedTable = {
 		entityType: 'tables',
 		name: 'tbl',
 		schema: null,
 	};
 
-	expect(db.entities.validate(table)).toStrictEqual(true);
-	expect(db.tables.validate(table)).toStrictEqual(true);
-	expect(db.views.validate(table)).toStrictEqual(false);
-
 	expect(db.entities.validate(deformedTable)).toStrictEqual(false);
 	expect(db.tables.validate(deformedTable)).toStrictEqual(false);
 	expect(db.views.validate(deformedTable)).toStrictEqual(false);
+
+	const deformedTable2 = {
+		entityType: 'tables',
+		name: 'tbl',
+		schema: 'sch',
+	};
+
+	expect(db.entities.validate(deformedTable2)).toStrictEqual(false);
+	expect(db.tables.validate(deformedTable2)).toStrictEqual(false);
+	expect(db.views.validate(deformedTable2)).toStrictEqual(false);
 
 	const column: typeof db._.types.columns = {
 		autoincrement: false,
