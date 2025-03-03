@@ -1404,6 +1404,232 @@ test('List via common function with filters', () => {
 	}]);
 });
 
+test('Validate', () => {
+	const junk = {};
+	if (db.views.validate(junk)) {
+		expectTypeOf(junk).toEqualTypeOf<Exclude<ReturnType<typeof db.views.one>, null>>();
+	}
+
+	if (db.entities.validate(junk)) {
+		expectTypeOf(junk).toEqualTypeOf<Exclude<ReturnType<typeof db.entities.one>, null>>();
+	}
+
+	const table: typeof db._.types.tables = {
+		entityType: 'tables',
+		name: 'tbl',
+	};
+
+	const deformedTable = {
+		entityType: 'tables',
+		name: 'tbl',
+		schema: null,
+	};
+
+	expect(db.entities.validate(table)).toStrictEqual(true);
+	expect(db.tables.validate(table)).toStrictEqual(true);
+	expect(db.views.validate(table)).toStrictEqual(false);
+
+	expect(db.entities.validate(deformedTable)).toStrictEqual(false);
+	expect(db.tables.validate(deformedTable)).toStrictEqual(false);
+	expect(db.views.validate(deformedTable)).toStrictEqual(false);
+
+	const column: typeof db._.types.columns = {
+		autoincrement: false,
+		default: null,
+		entityType: 'columns',
+		generated: { as: 'as', type: 'type' },
+		name: 'cn',
+		notNull: false,
+		primaryKey: false,
+		table: 'tt',
+		type: 'varchar',
+	};
+
+	expect(db.entities.validate(column)).toStrictEqual(true);
+	expect(db.columns.validate(column)).toStrictEqual(true);
+	expect(db.tables.validate(column)).toStrictEqual(false);
+
+	const column2: typeof db._.types.columns = {
+		autoincrement: false,
+		default: null,
+		entityType: 'columns',
+		generated: null,
+		name: 'cn',
+		notNull: false,
+		primaryKey: false,
+		table: 'tt',
+		type: 'varchar',
+	};
+
+	expect(db.entities.validate(column2)).toStrictEqual(true);
+	expect(db.columns.validate(column2)).toStrictEqual(true);
+	expect(db.tables.validate(column2)).toStrictEqual(false);
+
+	const columnDeformed = {
+		autoincrement: false,
+		default: null,
+		entityType: 'columns',
+		generated: { as: 'as', type: 'type', something: undefined },
+		name: 'cn',
+		notNull: false,
+		primaryKey: false,
+		table: 'tt',
+		type: 'varchar',
+	};
+
+	expect(db.entities.validate(columnDeformed)).toStrictEqual(false);
+	expect(db.columns.validate(columnDeformed)).toStrictEqual(false);
+	expect(db.tables.validate(columnDeformed)).toStrictEqual(false);
+
+	const columnDeformed2 = {
+		autoincrement: false,
+		default: null,
+		entityType: 'columns',
+		generated: 'wrong',
+		name: 'cn',
+		notNull: false,
+		primaryKey: false,
+		table: 'tt',
+		type: 'varchar',
+	};
+
+	expect(db.entities.validate(columnDeformed2)).toStrictEqual(false);
+	expect(db.columns.validate(columnDeformed2)).toStrictEqual(false);
+	expect(db.tables.validate(columnDeformed2)).toStrictEqual(false);
+
+	const pk: typeof db._.types.pks = {
+		columns: [],
+		entityType: 'pks',
+		name: 'pk1',
+		table: 'tt',
+	};
+
+	expect(db.entities.validate(pk)).toStrictEqual(true);
+	expect(db.pks.validate(pk)).toStrictEqual(true);
+	expect(db.views.validate(pk)).toStrictEqual(false);
+
+	const pk2: typeof db._.types.pks = {
+		columns: ['str', 'str2', 'str3'],
+		entityType: 'pks',
+		name: 'pk1',
+		table: 'tt',
+	};
+
+	expect(db.entities.validate(pk2)).toStrictEqual(true);
+	expect(db.pks.validate(pk2)).toStrictEqual(true);
+	expect(db.views.validate(pk2)).toStrictEqual(false);
+
+	const pkDeformed = {
+		columns: ['str', null, 'str3'],
+		entityType: 'pks',
+		name: 'pk1',
+		table: 'tt',
+	};
+
+	expect(db.entities.validate(pkDeformed)).toStrictEqual(false);
+	expect(db.pks.validate(pkDeformed)).toStrictEqual(false);
+	expect(db.views.validate(pkDeformed)).toStrictEqual(false);
+
+	const index: typeof db._.types.indexes = {
+		columns: [],
+		entityType: 'indexes',
+		isUnique: true,
+		name: 'idx',
+		table: 'tt',
+		where: null,
+	};
+
+	expect(db.entities.validate(index)).toStrictEqual(true);
+	expect(db.indexes.validate(index)).toStrictEqual(true);
+	expect(db.pks.validate(index)).toStrictEqual(false);
+
+	const index2: typeof db._.types.indexes = {
+		columns: [{
+			expression: true,
+			value: 'expr',
+		}],
+		entityType: 'indexes',
+		isUnique: true,
+		name: 'idx',
+		table: 'tt',
+		where: null,
+	};
+
+	expect(db.entities.validate(index2)).toStrictEqual(true);
+	expect(db.indexes.validate(index2)).toStrictEqual(true);
+	expect(db.pks.validate(index2)).toStrictEqual(false);
+
+	const index3: typeof db._.types.indexes = {
+		columns: [{
+			expression: true,
+			value: 'expr',
+		}, {
+			expression: false,
+			value: 'ex2',
+		}],
+		entityType: 'indexes',
+		isUnique: true,
+		name: 'idx',
+		table: 'tt',
+		where: null,
+	};
+
+	expect(db.entities.validate(index3)).toStrictEqual(true);
+	expect(db.indexes.validate(index3)).toStrictEqual(true);
+	expect(db.pks.validate(index3)).toStrictEqual(false);
+
+	const indexDeformed = {
+		columns: 2,
+		entityType: 'indexes',
+		isUnique: true,
+		name: 'idx',
+		table: 'tt',
+		where: null,
+	};
+
+	expect(db.entities.validate(indexDeformed)).toStrictEqual(false);
+	expect(db.indexes.validate(indexDeformed)).toStrictEqual(false);
+	expect(db.pks.validate(indexDeformed)).toStrictEqual(false);
+
+	const indexDeformed2 = {
+		columns: [{
+			expression: true,
+			value: 'expr',
+		}, {
+			expression: false,
+			value: 'ex2',
+		}, 'who?'],
+		entityType: 'indexes',
+		isUnique: true,
+		name: 'idx',
+		table: 'tt',
+		where: null,
+	};
+
+	expect(db.entities.validate(indexDeformed2)).toStrictEqual(false);
+	expect(db.indexes.validate(indexDeformed2)).toStrictEqual(false);
+	expect(db.pks.validate(indexDeformed2)).toStrictEqual(false);
+
+	const indexDeformed3 = {
+		columns: [null, {
+			expression: true,
+			value: 'expr',
+		}, {
+			expression: false,
+			value: 'ex2',
+		}],
+		entityType: 'indexes',
+		isUnique: true,
+		name: 'idx',
+		table: 'tt',
+		where: null,
+	};
+
+	expect(db.entities.validate(indexDeformed3)).toStrictEqual(false);
+	expect(db.indexes.validate(indexDeformed3)).toStrictEqual(false);
+	expect(db.pks.validate(indexDeformed3)).toStrictEqual(false);
+});
+
 test('diff: update', () => {
 	const cfg = {
 		column: {

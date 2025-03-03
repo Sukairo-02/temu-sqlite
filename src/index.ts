@@ -351,8 +351,12 @@ const generateDelete: (store: CollectionStore, type?: string) => DeleteFn<any> =
 	};
 };
 
-function validate(data: Record<string, any>, schema: Config): boolean {
+function validate(data: any, schema: Config, deep = false): boolean {
+	if (typeof data !== 'object' || data === null) return false;
+
 	for (const k of Array.from(new Set([...Object.keys(data), ...Object.keys(schema)]))) {
+		if (!deep && k === 'entityType') continue;
+
 		if (!schema[k]) return false;
 
 		if (schema[k] === 'string[]') {
@@ -368,10 +372,15 @@ function validate(data: Record<string, any>, schema: Config): boolean {
 				if (!schema[k].find((e) => e === data[k])) return false;
 			} else {
 				if (!Array.isArray(data[k])) return false;
-				if (!data[k].every((e) => validate(e, (schema[k] as [Config])[0]))) return false;
+				if (
+					!data[k].every(
+						(e) => validate(e, (schema[k] as [Config])[0]),
+						true,
+					)
+				) return false;
 			}
 		} else {
-			if (data[k] !== null && !validate(data[k], schema[k])) return false;
+			if (data[k] !== null && !validate(data[k], schema[k], true)) return false;
 		}
 	}
 
@@ -386,7 +395,7 @@ const generateValidate: (configs: Record<string, Config>, type?: string) => Vali
 		if (typeof data !== 'object' || data === null) return false;
 
 		const localType = type ?? (<any> data).entityType as string;
-		if (typeof type !== 'string') return false;
+		if (typeof localType !== 'string' || (<any> data).entityType !== localType) return false;
 
 		const config = configs[localType];
 		if (!config) return false;
