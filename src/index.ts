@@ -16,7 +16,7 @@ type Simplify<T> =
 type Assume<T, U> = T extends U ? T : U;
 
 type ExtendedType =
-	| `${DataType}${'' | '?'}`
+	| (`${Exclude<DataType, 'string[]'>}?` | DataType)
 	| 'required'
 	| [string, ...string[]]
 	| {
@@ -78,7 +78,7 @@ type Common = {
 	name: string;
 };
 
-const commonConfig: Config = {
+const commonConfig: Record<string, `${DataType}${'' | '?'}`> = {
 	schema: 'string?',
 	table: 'string?',
 	name: 'string',
@@ -110,10 +110,9 @@ type Filter<TInput extends Record<string, any> = Record<string, any>> = {
 type UpdateOperators<TInput extends Record<string, any>> = {
 	[K in keyof TInput]?:
 		| TInput[K]
-		| (TInput[K] extends (any[] | Record<string, any> | null) ? ((
-				item: TInput[K] extends any[] | null ? Exclude<TInput[K], null>[number] : TInput[K],
-			) => TInput[K] extends any[] | null ? Exclude<TInput[K], null>[number] : TInput[K])
-			: never);
+		| ((
+			item: TInput[K] extends any[] | null ? Exclude<TInput[K], null>[number] : TInput[K],
+		) => TInput[K] extends any[] | null ? Exclude<TInput[K], null>[number] : TInput[K]);
 };
 
 type CollectionStore = {
@@ -206,23 +205,41 @@ type InsertFn<
 type ListFn<TInput extends Record<string, any>> = (where?: Filter<TInput>) => TInput[];
 type OneFn<TInput extends Record<string, any>> = (where?: Filter<TInput>) => TInput | null;
 type UpdateFn<TInput extends Record<string, any>> = (
-	config: { set: Simplify<UpdateOperators<Omit<TInput, 'entityType'>>>; where?: Filter<TInput> },
+	config: TInput extends infer Input extends Record<string, any>
+		? { set: Simplify<UpdateOperators<Omit<Input, 'entityType'>>>; where?: Filter<Input> }
+		: never,
 ) => TInput[];
-type DeleteFn<TInput extends Record<string, any>> = (where?: Filter<TInput>) => TInput[];
+type DeleteFn<TInput extends Record<string, any>> = (
+	where?: TInput extends infer Input extends Record<string, any> ? Filter<Input> : never,
+) => TInput[];
+type ValidateFn<TInput extends Record<string, any>> = (data: unknown) => data is TInput;
 
-const generateInsert: (config: Config, store: CollectionStore, type?: string) => InsertFn<any> = (
-	config,
+const generateInsert: (configs: Record<string, Config>, store: CollectionStore, type?: string) => InsertFn<any> = (
+	configs,
 	store,
 	type,
 ) => {
-	const nulls = Object.fromEntries(Object.keys(config).map((e) => [e, null]));
+	let nulls = type
+		? Object.fromEntries(
+			Object.keys(configs[type]).filter((e) => !commonConfig[e] || !(commonConfig[e] as string).endsWith('?')).map((
+				e,
+			) => [e, null]),
+		)
+		: undefined;
 
 	return (input) => {
 		const filteredElement = Object.fromEntries(Object.entries(input).filter(([_, value]) => value !== undefined));
+		const localType = (type ?? filteredElement.entityType) as string;
+		const localNulls = nulls ?? Object.fromEntries(
+			Object.keys(configs[localType]).map((
+				e,
+			) => [e, null]),
+		);
+
 		const mapped = {
-			...nulls,
+			...localNulls,
 			...filteredElement,
-			entityType: type ?? filteredElement.entityType,
+			entityType: localType,
 		};
 
 		const conflict = findCompositeKey(store.collection as CommonEntity[], mapped as CommonEntity);
@@ -236,8 +253,7 @@ const generateInsert: (config: Config, store: CollectionStore, type?: string) =>
 	};
 };
 
-const generateList: (config: Config, store: CollectionStore, type?: string) => ListFn<any> = (
-	config,
+const generateList: (store: CollectionStore, type?: string) => ListFn<any> = (
 	store,
 	type,
 ) => {
@@ -254,8 +270,7 @@ const generateList: (config: Config, store: CollectionStore, type?: string) => L
 	};
 };
 
-const generateOne: (config: Config, store: CollectionStore, type?: string) => OneFn<any> = (
-	config,
+const generateOne: (store: CollectionStore, type?: string) => OneFn<any> = (
 	store,
 	type,
 ) => {
@@ -272,8 +287,7 @@ const generateOne: (config: Config, store: CollectionStore, type?: string) => On
 	};
 };
 
-const generateUpdate: (config: Config, store: CollectionStore, type?: string) => UpdateFn<any> = (
-	config,
+const generateUpdate: (store: CollectionStore, type?: string) => UpdateFn<any> = (
 	store,
 	type,
 ) => {
@@ -290,10 +304,13 @@ const generateUpdate: (config: Config, store: CollectionStore, type?: string) =>
 
 		for (const item of targets) {
 			for (const [k, v] of entries) {
+				if (!(k in item)) continue;
 				const target = item[k];
 
 				item[k] = typeof v === 'function'
-					? (Array.isArray(target) || config[k] === 'string[]?') ? target !== null ? target.map(v) : target : v(target)
+					? (Array.isArray(target))
+						? target.map(v)
+						: v(target)
 					: v;
 			}
 		}
@@ -302,8 +319,7 @@ const generateUpdate: (config: Config, store: CollectionStore, type?: string) =>
 	};
 };
 
-const generateDelete: (config: Config, store: CollectionStore, type?: string) => DeleteFn<any> = (
-	config,
+const generateDelete: (store: CollectionStore, type?: string) => DeleteFn<any> = (
 	store,
 	type,
 ) => {
@@ -335,6 +351,50 @@ const generateDelete: (config: Config, store: CollectionStore, type?: string) =>
 	};
 };
 
+function validate(data: Record<string, any>, schema: Config): boolean {
+	for (const k of Array.from(new Set([...Object.keys(data), ...Object.keys(schema)]))) {
+		if (!schema[k]) return false;
+
+		if (schema[k] === 'string[]') {
+			if (!Array.isArray(data[k])) return false;
+
+			if (!data[k].every((e) => typeof e === 'string')) return false;
+		} else if (typeof schema[k] === 'string') {
+			const isNullable = schema[k].endsWith('?');
+			if (data[k] === null && !isNullable) return false;
+			if (data[k] !== null && typeof data[k] !== removeQuestionMark(schema[k])) return false;
+		} else if (Array.isArray(schema[k])) {
+			if (typeof schema[k][0] === 'string') {
+				if (!schema[k].find((e) => e === data[k])) return false;
+			} else {
+				if (!Array.isArray(data[k])) return false;
+				if (!data[k].every((e) => validate(e, (schema[k] as [Config])[0]))) return false;
+			}
+		} else {
+			if (data[k] !== null && !validate(data[k], schema[k])) return false;
+		}
+	}
+
+	return true;
+}
+
+const generateValidate: (configs: Record<string, Config>, type?: string) => ValidateFn<any> = (
+	configs,
+	type,
+) => {
+	return ((data) => {
+		if (typeof data !== 'object' || data === null) return false;
+
+		const localType = type ?? (<any> data).entityType as string;
+		if (typeof type !== 'string') return false;
+
+		const config = configs[localType];
+		if (!config) return false;
+
+		return validate(data, config);
+	}) as ValidateFn<any>;
+};
+
 type GenerateProcessors<
 	T extends AnyDbConfig,
 	TCommon extends boolean = false,
@@ -346,6 +406,7 @@ type GenerateProcessors<
 		one: OneFn<TTypes[K]>;
 		update: UpdateFn<TTypes[K]>;
 		delete: DeleteFn<TTypes[K]>;
+		validate: ValidateFn<TTypes[K]>;
 	};
 };
 
@@ -353,25 +414,30 @@ function initSchemaProcessors<T extends Omit<DbConfig<any>, 'diffs'>, TCommon ex
 	{ entities }: T,
 	store: CollectionStore,
 	common: TCommon,
+	extraConfigs?: Record<string, Config>,
 ): GenerateProcessors<T, TCommon> {
 	const entries = Object.entries(entities);
 
 	return Object.fromEntries(entries.map(([k, v]) => {
 		return [k, {
-			insert: generateInsert(v, store, common ? undefined : k),
-			list: generateList(v, store, common ? undefined : k),
-			one: generateOne(v, store, common ? undefined : k),
-			update: generateUpdate(v, store, common ? undefined : k),
-			delete: generateDelete(v, store, common ? undefined : k),
+			insert: generateInsert(common ? extraConfigs! : entities, store, common ? undefined : k),
+			list: generateList(store, common ? undefined : k),
+			one: generateOne(store, common ? undefined : k),
+			update: generateUpdate(store, common ? undefined : k),
+			delete: generateDelete(store, common ? undefined : k),
+			validate: generateValidate(common ? extraConfigs! : entities, common ? undefined : k),
 		}];
-	})) as any;
+	})) as GenerateProcessors<T, TCommon>;
 }
 
-type Config = Record<string, string>;
+type Config = {
+	[K: string]: `${Exclude<DataType, 'string['>}?` | DataType | [string, ...string[]] | Config | [Config];
+};
 
 type DbConfig<TDefinition extends Definition> = {
 	/** Type-level fields only, do not attempt to access at runtime */
 	types: InferEntities<TDefinition>;
+	/** Type-level fields only, do not attempt to access at runtime */
 	definition: TDefinition;
 	entities: {
 		[K in keyof TDefinition]: Config;
@@ -533,6 +599,19 @@ function sanitizeRow(row: Record<string, any>) {
 	);
 }
 
+function getRowCommons(row: Record<string, any>): {
+	[K in keyof Common]: Common[K];
+} {
+	const res: Record<string, any> = {};
+	for (const k of Object.keys(commonConfig)) {
+		if (row[k] === undefined || row[k] === null) continue;
+
+		res[k] = row[k];
+	}
+
+	return res as any;
+}
+
 function _diff<
 	TDefinition extends Definition,
 	TCollection extends keyof TDefinition | 'entities' = 'entities',
@@ -581,10 +660,7 @@ function _diff<
 				dropped.push({
 					$diffType: 'drop',
 					entityType: oldRow.entityType,
-					name: oldRow.name,
-					// @ts-ignore
-					schema: oldRow.schema,
-					table: oldRow.table,
+					...getRowCommons(oldRow),
 					...sanitizeRow(oldRow),
 				});
 			}
@@ -605,10 +681,7 @@ function _diff<
 				altered.push({
 					$diffType: 'alter',
 					entityType: newRow.entityType,
-					name: newRow.name,
-					// @ts-ignore
-					schema: newRow.schema,
-					table: newRow.table,
+					...getRowCommons(newRow),
 					...changes,
 				});
 			}
@@ -622,10 +695,7 @@ function _diff<
 			created.push({
 				$diffType: 'create',
 				entityType: newRow.entityType as string,
-				name: newRow.name,
-				// @ts-ignore
-				schema: newRow.schema,
-				table: newRow.table,
+				...getRowCommons(newRow),
 				...sanitizeRow(newRow),
 			});
 		}
@@ -671,6 +741,14 @@ export namespace diff {
 	}
 }
 
+function removeQuestionMark<T extends string, TResult extends string = T extends `${infer R}?` ? R : T>(
+	str: T,
+): TResult {
+	if (!str.endsWith('?')) return str as string as TResult;
+
+	return str.slice(0, str.length - 1) as TResult;
+}
+
 class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 	public readonly _: DbConfig<TDefinition> = {
 		diffs: {} as any,
@@ -682,17 +760,7 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 	public entities: GenerateProcessors<{
 		types: {
 			entities: InferEntities<TDefinition> extends infer TInferred ? Simplify<
-					ValueOf<
-						{
-							[K in keyof TInferred]:
-								& TInferred[K]
-								& {
-									[C in keyof Common]: C extends keyof TInferred[K] ? null extends TInferred[K][C] ? Common[C]
-										: Exclude<Common[C], null>
-										: Common[C];
-								};
-						}
-					>
+					ValueOf<TInferred>
 				>
 				: never;
 		};
@@ -717,7 +785,7 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 						);
 					}
 
-					cloneDef[fieldName] = (commonConfig[fieldName]) as Exclude<
+					cloneDef[fieldName] = (removeQuestionMark(commonConfig[fieldName] as string)) as Exclude<
 						ExtendedType,
 						'required'
 					>;
@@ -728,10 +796,13 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 				}
 			});
 
-			return [type, {
-				...commonConfig,
-				...cloneDef,
-			}];
+			for (const k in commonConfig) {
+				if (commonConfig[k].endsWith('?')) continue;
+
+				cloneDef[k] = commonConfig[k];
+			}
+
+			return [type, cloneDef];
 		}));
 
 		this._.entities = configs as any;
@@ -743,7 +814,7 @@ class SimpleDb<TDefinition extends Definition = Record<string, any>> {
 			},
 		};
 
-		this.entities = initSchemaProcessors(entConfig, this._.store, true).entities as any;
+		this.entities = initSchemaProcessors(entConfig, this._.store, true, this._.entities).entities as any;
 	}
 }
 

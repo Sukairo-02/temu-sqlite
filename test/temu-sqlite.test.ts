@@ -100,7 +100,6 @@ test('Insert & list multiple entities', () => {
 			primaryKey: true,
 			table: 'users',
 			type: 'string',
-			schema: null,
 			entityType: 'columns',
 		},
 	});
@@ -119,7 +118,6 @@ test('Insert & list multiple entities', () => {
 			isUnique: true,
 			name: 'utg_idx',
 			where: null,
-			schema: null,
 			entityType: 'indexes',
 		},
 	});
@@ -136,7 +134,6 @@ test('Insert & list multiple entities', () => {
 		primaryKey: true,
 		table: 'users',
 		type: 'string',
-		schema: null,
 		entityType: 'columns',
 	});
 
@@ -154,7 +151,6 @@ test('Insert & list multiple entities', () => {
 		primaryKey: true,
 		table: 'users',
 		type: 'string',
-		schema: null,
 		entityType: 'columns',
 	}, {
 		columns: [{
@@ -168,7 +164,6 @@ test('Insert & list multiple entities', () => {
 		isUnique: true,
 		name: 'utg_idx',
 		where: null,
-		schema: null,
 		entityType: 'indexes',
 	}]);
 
@@ -184,7 +179,6 @@ test('Insert & list multiple entities', () => {
 		primaryKey: true,
 		table: 'users',
 		type: 'string',
-		schema: null,
 		entityType: 'columns',
 	}]);
 
@@ -200,7 +194,151 @@ test('Insert & list multiple entities', () => {
 		isUnique: true,
 		name: 'utg_idx',
 		where: null,
-		schema: null,
+		entityType: 'indexes',
+	}]);
+
+	expect(db.views.list()).toStrictEqual([]);
+});
+
+test('Insert & list multiple entities via common function', () => {
+	const inFirst = db.entities.insert({
+		entityType: 'columns',
+		name: 'id',
+		autoincrement: null,
+		default: null,
+		generated: {
+			type: 'always',
+			as: 'identity',
+		},
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
+	});
+
+	const inSecond = db.entities.insert({
+		entityType: 'indexes',
+		columns: [{
+			value: 'user_id',
+			expression: false,
+		}, {
+			value: 'group_id',
+			expression: false,
+		}],
+		table: 'users_to_groups',
+		isUnique: true,
+		name: 'utg_idx',
+		where: null,
+	});
+
+	expect(inFirst).toStrictEqual({
+		status: 'OK',
+		data: {
+			name: 'id',
+			autoincrement: null,
+			default: null,
+			generated: {
+				type: 'always',
+				as: 'identity',
+			},
+			notNull: true,
+			primaryKey: true,
+			table: 'users',
+			type: 'string',
+			entityType: 'columns',
+		},
+	});
+
+	expect(inSecond).toStrictEqual({
+		status: 'OK',
+		data: {
+			columns: [{
+				value: 'user_id',
+				expression: false,
+			}, {
+				value: 'group_id',
+				expression: false,
+			}],
+			table: 'users_to_groups',
+			isUnique: true,
+			name: 'utg_idx',
+			where: null,
+			entityType: 'indexes',
+		},
+	});
+
+	expect(db.entities.one()).toStrictEqual({
+		name: 'id',
+		autoincrement: null,
+		default: null,
+		generated: {
+			type: 'always',
+			as: 'identity',
+		},
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
+		entityType: 'columns',
+	});
+
+	expect(db.pks.one()).toStrictEqual(null);
+
+	expect(db.entities.list()).toStrictEqual([{
+		name: 'id',
+		autoincrement: null,
+		default: null,
+		generated: {
+			type: 'always',
+			as: 'identity',
+		},
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
+		entityType: 'columns',
+	}, {
+		columns: [{
+			value: 'user_id',
+			expression: false,
+		}, {
+			value: 'group_id',
+			expression: false,
+		}],
+		table: 'users_to_groups',
+		isUnique: true,
+		name: 'utg_idx',
+		where: null,
+		entityType: 'indexes',
+	}]);
+
+	expect(db.columns.list()).toStrictEqual([{
+		name: 'id',
+		autoincrement: null,
+		default: null,
+		generated: {
+			type: 'always',
+			as: 'identity',
+		},
+		notNull: true,
+		primaryKey: true,
+		table: 'users',
+		type: 'string',
+		entityType: 'columns',
+	}]);
+
+	expect(db.indexes.list()).toStrictEqual([{
+		columns: [{
+			value: 'user_id',
+			expression: false,
+		}, {
+			value: 'group_id',
+			expression: false,
+		}],
+		table: 'users_to_groups',
+		isUnique: true,
+		name: 'utg_idx',
+		where: null,
 		entityType: 'indexes',
 	}]);
 
@@ -247,7 +385,6 @@ test('Insert with common hash conflict', () => {
 			primaryKey: true,
 			table: 'users',
 			type: 'string',
-			schema: null,
 			entityType: 'columns',
 		},
 	});
@@ -266,7 +403,6 @@ test('Insert with common hash conflict', () => {
 			primaryKey: true,
 			table: 'users',
 			type: 'string',
-			schema: null,
 			entityType: 'columns',
 		},
 	});
@@ -283,7 +419,6 @@ test('Insert with common hash conflict', () => {
 		primaryKey: true,
 		table: 'users',
 		type: 'string',
-		schema: null,
 		entityType: 'columns',
 	}]);
 
@@ -299,7 +434,6 @@ test('Insert with common hash conflict', () => {
 		primaryKey: true,
 		table: 'users',
 		type: 'string',
-		schema: null,
 		entityType: 'columns',
 	}]);
 });
@@ -378,7 +512,6 @@ test('Delete specific entities', () => {
 		primaryKey: true,
 		table: 'users',
 		type: 'string',
-		schema: null,
 		entityType: 'columns',
 	}, {
 		name: 'name',
@@ -389,7 +522,6 @@ test('Delete specific entities', () => {
 		primaryKey: true,
 		table: 'users',
 		type: 'string',
-		schema: null,
 		entityType: 'columns',
 	}]);
 
@@ -405,7 +537,6 @@ test('Delete specific entities', () => {
 		isUnique: true,
 		name: 'utg_idx',
 		where: null,
-		schema: null,
 		entityType: 'indexes',
 	}]);
 
@@ -418,7 +549,6 @@ test('Delete specific entities', () => {
 		isUnique: false,
 		name: 'utg_g_idx',
 		where: null,
-		schema: null,
 		entityType: 'indexes',
 	}]);
 
@@ -433,12 +563,11 @@ test('Delete specific entities', () => {
 		isUnique: false,
 		name: 'utg_g_idx',
 		where: null,
-		schema: null,
 		entityType: 'indexes',
 	}]);
 });
 
-test('Delete specific entities with common function', () => {
+test('Delete specific entities via common function', () => {
 	db.columns.insert({
 		name: 'id',
 		autoincrement: null,
@@ -516,7 +645,6 @@ test('Delete specific entities with common function', () => {
 		primaryKey: true,
 		table: 'users',
 		type: 'string',
-		schema: null,
 		entityType: 'columns',
 	}, {
 		name: 'name',
@@ -527,7 +655,6 @@ test('Delete specific entities with common function', () => {
 		primaryKey: true,
 		table: 'users',
 		type: 'string',
-		schema: null,
 		entityType: 'columns',
 	}]);
 
@@ -543,7 +670,6 @@ test('Delete specific entities with common function', () => {
 		isUnique: true,
 		name: 'utg_idx',
 		where: null,
-		schema: null,
 		entityType: 'indexes',
 	}]);
 
@@ -556,7 +682,6 @@ test('Delete specific entities with common function', () => {
 		isUnique: false,
 		name: 'utg_g_idx',
 		where: null,
-		schema: null,
 		entityType: 'indexes',
 	}]);
 
@@ -571,7 +696,6 @@ test('Delete specific entities with common function', () => {
 		isUnique: false,
 		name: 'utg_g_idx',
 		where: null,
-		schema: null,
 		entityType: 'indexes',
 	}]);
 });
@@ -665,7 +789,6 @@ test('Update entities', () => {
 		primaryKey: true,
 		table: 'users',
 		type: 'bigint',
-		schema: null,
 		entityType: 'columns',
 	}, {
 		name: 'name',
@@ -676,7 +799,6 @@ test('Update entities', () => {
 		primaryKey: true,
 		table: 'users',
 		type: 'bigint',
-		schema: null,
 		entityType: 'columns',
 	}]);
 
@@ -692,7 +814,6 @@ test('Update entities', () => {
 		isUnique: true,
 		name: 'utg_idx',
 		where: 'whereExp',
-		schema: null,
 		entityType: 'indexes',
 	}]);
 
@@ -708,7 +829,6 @@ test('Update entities', () => {
 			name: 'id',
 			notNull: true,
 			primaryKey: true,
-			schema: null,
 			table: 'users',
 			type: 'bigint',
 		},
@@ -720,7 +840,6 @@ test('Update entities', () => {
 			name: 'name',
 			notNull: true,
 			primaryKey: true,
-			schema: null,
 			table: 'users',
 			type: 'bigint',
 		},
@@ -738,7 +857,6 @@ test('Update entities', () => {
 			entityType: 'indexes',
 			isUnique: true,
 			name: 'utg_idx',
-			schema: null,
 			table: 'users_to_groups',
 			where: 'whereExp',
 		},
@@ -752,7 +870,6 @@ test('Update entities', () => {
 			entityType: 'indexes',
 			isUnique: false,
 			name: 'utg_g_idx',
-			schema: null,
 			table: 'users_to_groups',
 			where: null,
 		},
@@ -771,7 +888,6 @@ test('Update entities', () => {
 				name: 'id',
 				notNull: true,
 				primaryKey: true,
-				schema: null,
 				table: 'users',
 				type: 'bigint',
 			},
@@ -783,7 +899,6 @@ test('Update entities', () => {
 				name: 'name',
 				notNull: true,
 				primaryKey: true,
-				schema: null,
 				table: 'users',
 				type: 'bigint',
 			},
@@ -806,7 +921,6 @@ test('Update entities', () => {
 				entityType: 'indexes',
 				isUnique: true,
 				name: 'utg_idx',
-				schema: null,
 				table: 'users_to_groups',
 				where: 'whereExp',
 			},
@@ -820,7 +934,6 @@ test('Update entities', () => {
 				entityType: 'indexes',
 				isUnique: false,
 				name: 'utg_g_idx',
-				schema: null,
 				table: 'users_to_groups',
 				where: null,
 			},
@@ -828,7 +941,7 @@ test('Update entities', () => {
 	);
 });
 
-test('Update entities with common function', () => {
+test('Update entities via common function', () => {
 	db.columns.insert({
 		name: 'id',
 		autoincrement: null,
@@ -887,7 +1000,7 @@ test('Update entities with common function', () => {
 
 	const updSecond = db.entities.update({
 		set: {
-			schema: 'idx_upd_schema',
+			name: (n) => `${n}_upd`,
 		},
 		where: {
 			columns: [
@@ -915,7 +1028,6 @@ test('Update entities with common function', () => {
 		primaryKey: true,
 		table: 'upd_tbl',
 		type: 'string',
-		schema: null,
 		entityType: 'columns',
 	}, {
 		name: 'name',
@@ -926,7 +1038,6 @@ test('Update entities with common function', () => {
 		primaryKey: true,
 		table: 'upd_tbl',
 		type: 'string',
-		schema: null,
 		entityType: 'columns',
 	}, {
 		columns: [{
@@ -938,9 +1049,8 @@ test('Update entities with common function', () => {
 		}],
 		table: 'upd_tbl',
 		isUnique: true,
-		name: 'utg_idx',
+		name: 'utg_idx_upd',
 		where: null,
-		schema: 'idx_upd_schema',
 		entityType: 'indexes',
 	}, {
 		columns: [
@@ -952,7 +1062,6 @@ test('Update entities with common function', () => {
 		entityType: 'indexes',
 		isUnique: false,
 		name: 'utg_g_idx',
-		schema: null,
 		table: 'upd_tbl',
 		where: null,
 	}]);
@@ -967,9 +1076,8 @@ test('Update entities with common function', () => {
 		}],
 		table: 'upd_tbl',
 		isUnique: true,
-		name: 'utg_idx',
+		name: 'utg_idx_upd',
 		where: null,
-		schema: 'idx_upd_schema',
 		entityType: 'indexes',
 	}]);
 
@@ -985,7 +1093,6 @@ test('Update entities with common function', () => {
 		primaryKey: true,
 		table: 'upd_tbl',
 		type: 'string',
-		schema: null,
 		entityType: 'columns',
 	}, {
 		name: 'name',
@@ -996,7 +1103,6 @@ test('Update entities with common function', () => {
 		primaryKey: true,
 		table: 'upd_tbl',
 		type: 'string',
-		schema: null,
 		entityType: 'columns',
 	}, {
 		columns: [{
@@ -1008,9 +1114,8 @@ test('Update entities with common function', () => {
 		}],
 		table: 'upd_tbl',
 		isUnique: true,
-		name: 'utg_idx',
+		name: 'utg_idx_upd',
 		where: null,
-		schema: 'idx_upd_schema',
 		entityType: 'indexes',
 	}, {
 		columns: [
@@ -1022,7 +1127,6 @@ test('Update entities with common function', () => {
 		entityType: 'indexes',
 		isUnique: false,
 		name: 'utg_g_idx',
-		schema: null,
 		table: 'upd_tbl',
 		where: null,
 	}]);
@@ -1041,7 +1145,6 @@ test('Update entities with common function', () => {
 				primaryKey: true,
 				table: 'upd_tbl',
 				type: 'string',
-				schema: null,
 				entityType: 'columns',
 			},
 			{
@@ -1053,7 +1156,6 @@ test('Update entities with common function', () => {
 				primaryKey: true,
 				table: 'upd_tbl',
 				type: 'string',
-				schema: null,
 				entityType: 'columns',
 			},
 		],
@@ -1071,9 +1173,8 @@ test('Update entities with common function', () => {
 				}],
 				table: 'upd_tbl',
 				isUnique: true,
-				name: 'utg_idx',
+				name: 'utg_idx_upd',
 				where: null,
-				schema: 'idx_upd_schema',
 				entityType: 'indexes',
 			},
 			{
@@ -1086,7 +1187,6 @@ test('Update entities with common function', () => {
 				entityType: 'indexes',
 				isUnique: false,
 				name: 'utg_g_idx',
-				schema: null,
 				table: 'upd_tbl',
 				where: null,
 			},
@@ -1168,7 +1268,6 @@ test('List with filters', () => {
 		primaryKey: true,
 		table: 'users',
 		type: 'string',
-		schema: null,
 		entityType: 'columns',
 	}, {
 		name: 'name',
@@ -1179,7 +1278,6 @@ test('List with filters', () => {
 		primaryKey: true,
 		table: 'users',
 		type: 'string',
-		schema: null,
 		entityType: 'columns',
 	}]);
 
@@ -1195,12 +1293,11 @@ test('List with filters', () => {
 		isUnique: true,
 		name: 'utg_idx',
 		where: null,
-		schema: null,
 		entityType: 'indexes',
 	}]);
 });
 
-test('List with common function and filters', () => {
+test('List via common function with filters', () => {
 	db.columns.insert({
 		name: 'id',
 		autoincrement: null,
@@ -1278,7 +1375,6 @@ test('List with common function and filters', () => {
 		primaryKey: true,
 		table: 'users',
 		type: 'string',
-		schema: null,
 		entityType: 'columns',
 	}, {
 		name: 'name',
@@ -1289,7 +1385,6 @@ test('List with common function and filters', () => {
 		primaryKey: true,
 		table: 'users',
 		type: 'string',
-		schema: null,
 		entityType: 'columns',
 	}]);
 
@@ -1305,7 +1400,6 @@ test('List with common function and filters', () => {
 		isUnique: true,
 		name: 'utg_idx',
 		where: null,
-		schema: null,
 		entityType: 'indexes',
 	}]);
 });
@@ -1353,7 +1447,6 @@ test('diff: update', () => {
 	expect(diff.all(original, changed, 'column')).toStrictEqual([{
 		$diffType: 'alter',
 		entityType: 'column',
-		schema: null,
 		table: 'user',
 		name: 'name',
 		type: {
@@ -1364,7 +1457,6 @@ test('diff: update', () => {
 	expect(diff.all(original, changed)).toStrictEqual([{
 		$diffType: 'alter',
 		entityType: 'column',
-		schema: null,
 		table: 'user',
 		name: 'name',
 		type: {
@@ -1377,7 +1469,6 @@ test('diff: update', () => {
 	expect(diff.alters(original, changed, 'column')).toStrictEqual([{
 		$diffType: 'alter',
 		entityType: 'column',
-		schema: null,
 		table: 'user',
 		name: 'name',
 		type: {
@@ -1388,7 +1479,6 @@ test('diff: update', () => {
 	expect(diff.alters(original, changed)).toStrictEqual([{
 		$diffType: 'alter',
 		entityType: 'column',
-		schema: null,
 		table: 'user',
 		name: 'name',
 		type: {
@@ -1402,7 +1492,6 @@ test('diff: update', () => {
 	expect(res).toStrictEqual([{
 		$diffType: 'alter',
 		entityType: 'column',
-		schema: null,
 		table: 'user',
 		name: 'name',
 		type: {
@@ -1472,7 +1561,6 @@ test('diff: update object', () => {
 	expect(res).toStrictEqual([{
 		$diffType: 'alter',
 		entityType: 'column',
-		schema: null,
 		table: 'user',
 		name: 'id',
 		obj: {
@@ -1485,7 +1573,6 @@ test('diff: update object', () => {
 	}, {
 		$diffType: 'alter',
 		entityType: 'column',
-		schema: null,
 		table: 'user',
 		name: 'name',
 		type: {
@@ -1579,7 +1666,6 @@ test('diff: update object array', () => {
 	expect(res).toStrictEqual([{
 		$diffType: 'alter',
 		entityType: 'column',
-		schema: null,
 		table: 'user',
 		name: 'id',
 		obj: {
@@ -1598,7 +1684,6 @@ test('diff: update object array', () => {
 	}, {
 		$diffType: 'alter',
 		entityType: 'column',
-		schema: null,
 		table: 'user',
 		name: 'name',
 		type: {
@@ -1656,7 +1741,6 @@ test('diff: insert', () => {
 		$diffType: 'create',
 		entityType: 'column',
 		name: 'name',
-		schema: null,
 		table: 'user',
 		type: 'varchar',
 		pk: false,
@@ -1665,7 +1749,6 @@ test('diff: insert', () => {
 		$diffType: 'create',
 		entityType: 'column',
 		name: 'name',
-		schema: null,
 		table: 'user',
 		type: 'varchar',
 		pk: false,
@@ -1678,7 +1761,6 @@ test('diff: insert', () => {
 		$diffType: 'create',
 		entityType: 'column',
 		name: 'name',
-		schema: null,
 		table: 'user',
 		type: 'varchar',
 		pk: false,
@@ -1687,7 +1769,6 @@ test('diff: insert', () => {
 		$diffType: 'create',
 		entityType: 'column',
 		name: 'name',
-		schema: null,
 		table: 'user',
 		type: 'varchar',
 		pk: false,
@@ -1697,7 +1778,6 @@ test('diff: insert', () => {
 		$diffType: 'create',
 		entityType: 'column',
 		name: 'name',
-		schema: null,
 		table: 'user',
 		type: 'varchar',
 		pk: false,
@@ -1742,7 +1822,6 @@ test('diff: delete', () => {
 		entityType: 'column',
 		name: 'name',
 		table: 'user',
-		schema: null,
 		type: 'varchar',
 		pk: false,
 	}]);
@@ -1751,7 +1830,6 @@ test('diff: delete', () => {
 		entityType: 'column',
 		name: 'name',
 		table: 'user',
-		schema: null,
 		type: 'varchar',
 		pk: false,
 	}]);
@@ -1760,7 +1838,6 @@ test('diff: delete', () => {
 		entityType: 'column',
 		name: 'name',
 		table: 'user',
-		schema: null,
 		type: 'varchar',
 		pk: false,
 	}]);
@@ -1769,7 +1846,6 @@ test('diff: delete', () => {
 		entityType: 'column',
 		name: 'name',
 		table: 'user',
-		schema: null,
 		type: 'varchar',
 		pk: false,
 	}]);
@@ -1783,7 +1859,6 @@ test('diff: delete', () => {
 		entityType: 'column',
 		name: 'name',
 		table: 'user',
-		schema: null,
 		type: 'varchar',
 		pk: false,
 	}]);
