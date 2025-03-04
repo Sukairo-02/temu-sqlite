@@ -1,4 +1,4 @@
-import { beforeEach } from 'vitest';
+import { beforeAll, beforeEach } from 'vitest';
 import { expect, expectTypeOf, test } from 'vitest';
 import { create, diff } from '../src';
 
@@ -55,6 +55,31 @@ const db = create({
 
 beforeEach(() => {
 	db.entities.delete();
+});
+
+test('Insert with custom conflict detection list', () => {
+	db.entities.insert({
+		entityType: 'checks',
+		name: 'a',
+		table: 't',
+		value: '2',
+	}, ['name']);
+	expect(
+		db.entities.insert({
+			entityType: 'checks',
+			name: 'b',
+			table: 't',
+			value: '2',
+		}, ['name']).status,
+	).toStrictEqual('OK');
+	expect(
+		db.entities.insert({
+			entityType: 'checks',
+			name: 'a',
+			table: 'tt',
+			value: '2',
+		}, ['name']).status,
+	).toStrictEqual('CONFLICT');
 });
 
 test('Insert & list multiple entities', () => {

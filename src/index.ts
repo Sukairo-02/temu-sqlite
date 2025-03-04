@@ -198,6 +198,7 @@ type InsertFn<
 	TCommon extends boolean = false,
 > = (
 	input: InferInsert<TInput, TCommon>,
+	uniques?: TInput extends infer Input ? (Exclude<Assume<keyof Input, string>, 'entityType'>)[] : never,
 ) => {
 	status: 'OK' | 'CONFLICT';
 	data: TInput extends [Record<string, any>, Record<string, any>, ...Record<string, any>[]] ? TInput[] : TInput;
@@ -227,7 +228,7 @@ const generateInsert: (configs: Record<string, Config>, store: CollectionStore, 
 		)
 		: undefined;
 
-	return (input) => {
+	return (input, uniques) => {
 		const filteredElement = Object.fromEntries(Object.entries(input).filter(([_, value]) => value !== undefined));
 		const localType = (type ?? filteredElement.entityType) as string;
 		const localNulls = nulls ?? Object.fromEntries(
@@ -242,7 +243,15 @@ const generateInsert: (configs: Record<string, Config>, store: CollectionStore, 
 			entityType: localType,
 		};
 
-		const conflict = findCompositeKey(store.collection as CommonEntity[], mapped as CommonEntity);
+		const conflict = uniques
+			? store.collection.find((e) => {
+				for (const k of uniques) {
+					if (k in mapped && !isEqual(mapped[k as keyof typeof mapped], e[k])) return false;
+				}
+
+				return true;
+			})
+			: findCompositeKey(store.collection as CommonEntity[], mapped as CommonEntity);
 		if (conflict) {
 			return { status: 'CONFLICT', data: conflict };
 		}
