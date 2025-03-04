@@ -245,6 +245,7 @@ const generateInsert: (configs: Record<string, Config>, store: CollectionStore, 
 
 		const conflict = uniques
 			? store.collection.find((e) => {
+				if ((e as CommonEntity).entityType !== mapped.entityType) return false;
 				for (const k of uniques) {
 					if (k in mapped && !isEqual(mapped[k as keyof typeof mapped], e[k])) return false;
 				}
